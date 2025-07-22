@@ -1,0 +1,17 @@
+1. Primary         → literals, variables, grouping
+2. Unary           → -, !
+3. Factor          → *, /
+4. Term            → +, -
+5. Comparison      → <, >, <=, >=
+6. Equality        → ==, !=
+7. Logical AND     → &&
+8. Logical OR      → ||
+
+logicalOr
+ └── logicalAnd
+      └── equality
+           └── comparison
+                └── term (+/-)
+                     └── factor (*//)
+                          └── unary
+                               └── primary

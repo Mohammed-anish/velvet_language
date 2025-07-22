@@ -1,0 +1,5 @@
+#return statement [Done]
+#reactive variable [Done]
+#differnt datatypes 
+#Map, Object, array
+#loop(),for(),while(),do while

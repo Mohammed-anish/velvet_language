@@ -1,0 +1,23 @@
+[DEFS]
+
+KEYWORDS=[ON, EXISTS,GLOBAL]
+OPERATORS= type(arethemic) [+, -, *, /,] type(comparison) [<, >, <=, >=, ==, !=] type(assignment)[=]
+DELIMITERS=[,]
+COMMENTS=[;]
+STRINGS=[\",]
+DIGITS=[0-9]
+LETTERS=[a-zA-Z]
+NULLCHECK=[?, ?? , !]
+
+
+[PROGRAM]
+
+
+GLOBAL IDENTIFIER = IDENTIFIER | KEYWORDS | STRINGS | DIGITS | LETTERS
+
+
+KEYWORDS IDENTIFIER.PROPERTY 
+
+
+
+

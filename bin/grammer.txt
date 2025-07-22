@@ -1,0 +1,14 @@
+Programe-: statements*
+
+statements*-: IfCondition | FunctionDeclaration | FunctionCall | VariableDeclaration | Variable | ExpressionStatement | ForLoopStatement 
+identifier-: !string && !number && !keyword
+keyword-: if | else | event | for | auto | int | str | tri
+expression-: string | number | identifier | FunctionCall* | boolean | tristate
+argument-: expression* ,
+IfCondition-: if ( expression ) { statements* }
+condition-: expression | boolean |
+
+FunctionDeclaration-: fn async <optional:Type:identifier> identifier (argument*){
+statements*
+}
+
