@@ -1,0 +1,3 @@
+echo 'Starting interpreter'
+cd bin
+dart run velvet.dart "$1"

@@ -5,10 +5,13 @@ import 'package:velvet_cmp/lexer/tokenizer.dart';
 import 'package:velvet_cmp/parser/ast_classes.dart';
 import 'package:velvet_cmp/parser/parser.dart';
 
+bool isJsBuild = identical(1, 1.0);
+
 void main(List<String> args) {
   Tokenizer tokenizer = Tokenizer(read(args))..tokenize();
-  Programe parse = Parser(tokenizer).parse();
+  // print(tokenizer.tokens);
 
+  Programe parse = Parser(tokenizer).parse();
   // print(parse);
   Interpreter().execute(parse);
 }

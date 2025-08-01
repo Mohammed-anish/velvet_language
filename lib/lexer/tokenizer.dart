@@ -62,6 +62,10 @@ class Tokenizer {
           case ']':
             addToken(TType.rBracket);
             break;
+          case '.':
+            addToken(TType.dot);
+            break;
+
           case ',':
             addToken(TType.comma);
             break;
@@ -135,7 +139,9 @@ class Tokenizer {
 
   void _identifierOrKeyword() {
     final start = index;
-    while (!_isAtEndOrInvalid(current)) advance();
+    while (!_isAtEndOrInvalid(current)) {
+      advance();
+    }
     final text = source.substring(start, index);
 
     final keywords = {
@@ -161,7 +167,13 @@ class Tokenizer {
       'case': TType.case_,
       'default': TType.default_,
       'watch': TType.watch,
-      'loop': TType.loop
+      'loop': TType.loop,
+      'static': TType.static,
+      'new': TType.new_,
+      'dot': TType.dot,
+      'this': TType.this_,
+      'outer': TType.outer,
+      'derives': TType.derives
     };
 
     final type = keywords[text] ?? TType.identifier;
@@ -170,11 +182,15 @@ class Tokenizer {
 
   void _number() {
     final start = index;
-    while (_isDigit(current)) advance();
+    while (_isDigit(current)) {
+      advance();
+    }
 
     if (current == '.' && _isDigit(_peek())) {
       advance(); // Consume dot
-      while (_isDigit(current)) advance();
+      while (_isDigit(current)) {
+        advance();
+      }
     }
 
     final value = source.substring(start, index);
@@ -184,14 +200,18 @@ class Tokenizer {
   void _string(String quote) {
     advance(); // Skip opening quote
     final start = index;
-    while (!isAtEnd && current != quote) advance();
+    while (!isAtEnd && current != quote) {
+      advance();
+    }
     final value = source.substring(start, index);
     advance(); // Skip closing quote
     addToken(TType.string, value);
   }
 
   void _comment() {
-    while (!isAtEnd && current != '\n') advance();
+    while (!isAtEnd && current != '\n') {
+      advance();
+    }
     // addToken(TType.comment);
   }
 

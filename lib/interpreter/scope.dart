@@ -60,4 +60,12 @@ mixin Scopes {
   setEmptyReactive(String name) {
     reactiveScopes.last[name] = [];
   }
+
+  setGlobal(String key, dynamic value) {
+    scopes.first.addAll({key: value});
+  }
+
+  getGlobal(String key) {
+    return scopes.first[key];
+  }
 }

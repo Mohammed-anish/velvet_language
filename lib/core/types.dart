@@ -87,5 +87,9 @@ enum TType {
   eof,
   reactive,
   watch,
-  loop
+  loop,
+  static,
+  new_,
+  this_,
+  outer, derives
 }

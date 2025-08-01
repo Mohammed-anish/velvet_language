@@ -1,5 +1,3 @@
-import 'package:velvet_cmp/core/types.dart';
-
 abstract class Node {}
 
 class BineryNode extends Node {
@@ -25,28 +23,32 @@ class FunctionDecl extends Node {
   final String kind;
   final List<Node> body;
   final Node? returnType;
+  final bool isOuter;
   FunctionDecl(
       {required this.name,
       this.returnType,
       required this.kind,
       required this.body,
-      required this.arguments});
+      required this.arguments,
+      required this.isOuter});
   final List<String> arguments;
 
   @override
-  String toString() => 'FunctionDecl(name: $name, kind: $kind, body: $body)';
+  String toString() {
+    return 'FunctionDecl(name: $name, kind: $kind, body: $body, returnType: $returnType, isOuter: $isOuter, arguments: $arguments)';
+  }
 }
 
 class FunctionCall extends Node {
-  final String name;
+  final Node callee;
   final List<Node> arguments;
   FunctionCall({
-    required this.name,
+    required this.callee,
     required this.arguments,
   });
 
   @override
-  String toString() => 'FunctionCall(name: $name, arguments: $arguments)';
+  String toString() => 'FunctionCall(name: $callee, arguments: $arguments)';
 }
 
 class Programe extends Node {
@@ -109,21 +111,25 @@ class VariableDeclarationNode extends Node {
   final String kind;
   final Node value;
   final bool isReactive;
+  final bool isField;
+  final bool isStatic;
 
   VariableDeclarationNode(
       {required this.name,
       required this.kind,
       required this.value,
+      required this.isField,
+      required this.isStatic,
       this.isReactive = false});
 
   @override
   String toString() {
-    return 'VariableDeclarationNode(name: $name, kind: $kind, value: $value, isReactive: $isReactive)';
+    return 'VariableDeclarationNode(name: $name, kind: $kind, value: $value, isReactive: $isReactive, isField: $isField, isStatic: $isStatic)';
   }
 }
 
 class LoopStatement extends Node {
-  final int iterationTimes;
+  final Node iterationTimes;
   final String? indexName;
   final List<Node> body;
   LoopStatement({
@@ -134,14 +140,19 @@ class LoopStatement extends Node {
 }
 
 class AssignmentNode extends Node {
-  final String variableName;
+  final Node target;
   final Node value;
 
   AssignmentNode({
-    required this.variableName,
+    required this.target,
     required this.value,
   });
+
+  @override
+  String toString() => 'AssignmentNode(target: $target, value: $value)';
 }
+
+class ThisNode extends Node {}
 
 class WatchStatement extends Node {
   final String target;
@@ -180,4 +191,41 @@ class BooleanNode extends Node {
 
   @override
   String toString() => 'BooleanNode(value: $value)';
+}
+
+class MemberAccess extends Node {
+  final Node object;
+  final String property;
+  MemberAccess({
+    required this.object,
+    required this.property,
+  });
+
+  @override
+  String toString() => 'MemberAccess(object: $object, property: $property)';
+}
+
+class ClassDeclration extends Node {
+  final String name;
+  final List<Node> body;
+  final List<String> superClasses;
+
+  ClassDeclration(
+      {required this.name, required this.body, required this.superClasses});
+
+  @override
+  String toString() =>
+      'ClassDeclration(name: $name,superClasses:$superClasses, body: $body )';
+}
+
+class NewClassInstance extends Node {
+  final String name;
+  final List<String> args;
+  NewClassInstance({
+    required this.name,
+    required this.args,
+  });
+
+  @override
+  String toString() => 'NewClassInstance(name: $name, args: $args)';
 }

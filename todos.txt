@@ -2,4 +2,10 @@
 #reactive variable [Done]
 #differnt datatypes 
 #Map, Object, array
-#loop(),for(),while(),do while
+#loop() [Done]
+,for(),while(),do while
+
+class 
+fields
+constructor
+functions

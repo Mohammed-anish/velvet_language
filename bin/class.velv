@@ -1,0 +1,12 @@
+class Object{
+    fn toString(){
+        print('test tostring')
+    }
+}
+
+class Velv derives Object{
+
+
+}
+
+new Velv()

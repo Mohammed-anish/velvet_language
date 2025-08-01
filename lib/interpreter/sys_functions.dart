@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:velvet_cmp/parser/ast_classes.dart';
 
 class SysFunctions {
   static List<String> functions = ['print', 'ofile'];

@@ -12,3 +12,8 @@ FunctionDeclaration-: fn async <optional:Type:identifier> identifier (argument*)
 statements*
 }
 
+ClassDeclaration-: class <identifier> {
+    ClassBody*
+}
+
+ClassBody*-:FieldDeclaration | VariableDeclaration | ConstructorDeclaration

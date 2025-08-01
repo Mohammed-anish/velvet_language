@@ -1,0 +1,4 @@
+class Object{
+    outer fn str string()
+    outer fn num hash()
+}
