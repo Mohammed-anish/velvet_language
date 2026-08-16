@@ -57,6 +57,8 @@ class Runtime {
     primitiveTypeChecks.add(MapEntry(check, velvetClassName));
   }
 
+  static List<String> scriptArgs = [];
+
   static void register(String name, void Function(KlassBuilder klass) builder) {
     builder(KlassBuilder(name));
   }

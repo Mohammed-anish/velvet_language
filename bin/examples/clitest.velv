@@ -1,0 +1,9 @@
+auto argsList = arg()
+print("Total arguments provided: " + argsList.length())
+
+if (argsList.length() > 0) {
+  print("First argument: " + arg(0))
+}
+
+auto name = input("Enter your name: ")
+print("Hello, " + name + "!")
