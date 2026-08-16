@@ -1,0 +1,10 @@
+import "io.velv"
+
+async fn testHTTP() {
+  print("Testing HTTP GET...")
+  auto response = await Http.get("http://example.com", {})
+  print("HTTP GET SUCCESS!")
+  print(response)
+}
+
+await testHTTP()

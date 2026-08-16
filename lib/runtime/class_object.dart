@@ -7,21 +7,16 @@ class klassObject {
 
   klassObject(
       {required this.fields,
-      required this.methods,
-      required Function(Node node) execute}) {
-    fields
-        .where(
-      (element) => element.isStatic,
-    )
-        .forEach(
-      (element) {
-        execute(StaticField(
-            target: this, name: element.name, value: element.value));
-      },
-    );
+      required this.methods});
+
+  Future<void> initStatics(Function(Node node) execute) async {
+    for (var element in fields.where((element) => element.isStatic)) {
+      await execute(StaticField(
+          target: this, name: element.name, value: element.value));
+    }
   }
 
-  instanciate(String name, Function(Node node) execute) {
+  Future<KlassInstance> instanciate(String name, Function(Node node) execute) async {
     Map<String, FunctionDecl> functions = {};
     for (var e in methods) {
       functions[e.name] = e;
@@ -30,7 +25,7 @@ class klassObject {
     Map<String, dynamic> fields = {};
 
     for (var f in this.fields) {
-      fields[f.name] = execute(f.value);
+      fields[f.name] = await execute(f.value);
     }
 
     return KlassInstance(this, name, functions, fields);

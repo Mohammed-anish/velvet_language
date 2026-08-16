@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:async' as dart_async;
+import 'dart:typed_data';
 import 'dart:math' as math;
 import 'package:velvet_cmp/runtime/class_object.dart';
 import 'package:velvet_cmp/runtime/runtime.dart';
@@ -20,6 +22,273 @@ class OuterFunctionRegistry {
       klass.defineStatic('getMd5', (args) => md5);
     });
 
+    Runtime.bindPrimitive(Uri, 'URL');
+    Runtime.bindPrimitive(Uri.parse('http://a').runtimeType, 'URL');
+
+    Runtime.register("URL", (klass) {
+      klass.defineStatic('parse', (args) => Uri.parse(args[0] as String));
+      klass.getter('scheme', (args) => (args[0] as Uri).scheme);
+      klass.getter('host', (args) => (args[0] as Uri).host);
+      klass.getter('port', (args) => (args[0] as Uri).port);
+      klass.getter('path', (args) => (args[0] as Uri).path);
+      klass.getter('query', (args) => (args[0] as Uri).query);
+      klass.getter('fragment', (args) => (args[0] as Uri).fragment);
+      klass.getter('userInfo', (args) => (args[0] as Uri).userInfo);
+      klass.getter('authority', (args) => (args[0] as Uri).authority);
+    });
+
+    Runtime.register("DNS", (klass) {
+      klass.defineStatic('lookup', (args) async {
+        var addresses = await InternetAddress.lookup(args[0] as String);
+        return addresses.map((e) => e.address).toList();
+      });
+    });
+
+    Runtime.bindPrimitive(Socket, 'Socket');
+    Runtime.bindPrimitiveTypeCheck((obj) => obj is Socket, 'Socket');
+    Runtime.bindPrimitive(ServerSocket, 'ServerSocket');
+    Runtime.bindPrimitiveTypeCheck((obj) => obj is ServerSocket, 'ServerSocket');
+
+    final socketBuffers = <Socket, List<List<int>>>{};
+    final socketCompleters = <Socket, List<dart_async.Completer<List<int>>>>{};
+
+    Runtime.register("Socket", (klass) {
+      klass.defineStatic('connect', (args) async {
+        var host = args[0] as String;
+        var port = (args[1] as num).toInt();
+        var socket = await Socket.connect(host, port);
+        
+        socketBuffers[socket] = [];
+        socketCompleters[socket] = [];
+        
+        socket.listen((data) {
+          if (socketCompleters[socket] != null && socketCompleters[socket]!.isNotEmpty) {
+            var c = socketCompleters[socket]!.removeAt(0);
+            c.complete(data);
+          } else if (socketBuffers[socket] != null) {
+            socketBuffers[socket]!.add(data);
+          }
+        }, onDone: () {
+          if (socketCompleters[socket] != null) {
+            for (var c in socketCompleters[socket]!) {
+              c.complete(<int>[]);
+            }
+            socketCompleters[socket]!.clear();
+          }
+        });
+        
+        return socket;
+      });
+
+      klass.define('write', (args) async {
+        var socket = args[0] as Socket;
+        var data = args[1] as String;
+        socket.write(data);
+        await socket.flush();
+        return null;
+      });
+
+      klass.define('read', (args) async {
+        var socket = args[0] as Socket;
+        var buffer = socketBuffers[socket]!;
+        var completers = socketCompleters[socket]!;
+        
+        if (buffer.isNotEmpty) {
+          return utf8.decode(buffer.removeAt(0), allowMalformed: true);
+        }
+        
+        var completer = dart_async.Completer<List<int>>();
+        completers.add(completer);
+        var data = await completer.future;
+        if (data.isEmpty) return "";
+        return utf8.decode(data, allowMalformed: true);
+      });
+
+      klass.define('close', (args) async {
+        var socket = args[0] as Socket;
+        await socket.close();
+        socketBuffers.remove(socket);
+        socketCompleters.remove(socket);
+        return null;
+      });
+    });
+
+    final serverBuffers = <ServerSocket, List<Socket>>{};
+    final serverCompleters = <ServerSocket, List<dart_async.Completer<Socket>>>{};
+
+    Runtime.register("ServerSocket", (klass) {
+      klass.defineStatic('bind', (args) async {
+        var host = args[0] as String;
+        var port = (args[1] as num).toInt();
+        var server = await ServerSocket.bind(host, port);
+        
+        serverBuffers[server] = [];
+        serverCompleters[server] = [];
+        
+        server.listen((socket) {
+          // Initialize socket buffers just like connect
+          socketBuffers[socket] = [];
+          socketCompleters[socket] = [];
+          
+          socket.listen((data) {
+            if (socketCompleters[socket] != null && socketCompleters[socket]!.isNotEmpty) {
+              var c = socketCompleters[socket]!.removeAt(0);
+              c.complete(data);
+            } else if (socketBuffers[socket] != null) {
+              socketBuffers[socket]!.add(data);
+            }
+          }, onDone: () {
+            if (socketCompleters[socket] != null) {
+              for (var c in socketCompleters[socket]!) {
+                c.complete(<int>[]);
+              }
+              socketCompleters[socket]!.clear();
+            }
+          });
+
+          if (serverCompleters[server]!.isNotEmpty) {
+            var c = serverCompleters[server]!.removeAt(0);
+            c.complete(socket);
+          } else {
+            serverBuffers[server]!.add(socket);
+          }
+        });
+        
+        return server;
+      });
+
+      klass.define('accept', (args) async {
+        var server = args[0] as ServerSocket;
+        var buffer = serverBuffers[server]!;
+        var completers = serverCompleters[server]!;
+        
+        if (buffer.isNotEmpty) {
+          return buffer.removeAt(0);
+        }
+        
+        var completer = dart_async.Completer<Socket>();
+        completers.add(completer);
+        return await completer.future;
+      });
+
+      klass.define('close', (args) async {
+        var server = args[0] as ServerSocket;
+        await server.close();
+        serverBuffers.remove(server);
+        serverCompleters.remove(server);
+        return null;
+      });
+    });
+
+    Runtime.bindPrimitive(RawDatagramSocket, 'UDPSocket');
+    Runtime.bindPrimitiveTypeCheck((obj) => obj is RawDatagramSocket, 'UDPSocket');
+
+    final udpBuffers = <RawDatagramSocket, List<Datagram>>{};
+    final udpCompleters = <RawDatagramSocket, List<dart_async.Completer<Datagram>>>{};
+
+    Runtime.register("UDPSocket", (klass) {
+      klass.defineStatic('bind', (args) async {
+        var host = args[0] as String;
+        var port = (args[1] as num).toInt();
+        var socket = await RawDatagramSocket.bind(host, port);
+
+        udpBuffers[socket] = [];
+        udpCompleters[socket] = [];
+
+        socket.listen((event) {
+          if (event == RawSocketEvent.read) {
+            var datagram = socket.receive();
+            if (datagram != null) {
+              if (udpCompleters[socket] != null && udpCompleters[socket]!.isNotEmpty) {
+                var c = udpCompleters[socket]!.removeAt(0);
+                c.complete(datagram);
+              } else if (udpBuffers[socket] != null) {
+                udpBuffers[socket]!.add(datagram);
+              }
+            }
+          }
+        }, onDone: () {
+          if (udpCompleters[socket] != null) {
+            for (var c in udpCompleters[socket]!) {
+              // Return an empty datagram to unblock
+              c.complete(Datagram(Uint8List(0), InternetAddress.anyIPv4, 0));
+            }
+            udpCompleters[socket]!.clear();
+          }
+        });
+
+        return socket;
+      });
+
+      klass.define('send', (args) async {
+        var socket = args[0] as RawDatagramSocket;
+        var data = args[1] as String;
+        var host = args[2] as String;
+        var port = (args[3] as num).toInt();
+        var addresses = await InternetAddress.lookup(host);
+        if (addresses.isNotEmpty) {
+          socket.send(utf8.encode(data), addresses.first, port);
+        }
+        return null;
+      });
+
+      klass.define('receive', (args) async {
+        var socket = args[0] as RawDatagramSocket;
+        var buffer = udpBuffers[socket]!;
+        var completers = udpCompleters[socket]!;
+
+        if (buffer.isNotEmpty) {
+          var dg = buffer.removeAt(0);
+          if (dg.data.isEmpty) return null; // Done
+          return utf8.decode(dg.data, allowMalformed: true);
+        }
+
+        var completer = dart_async.Completer<Datagram>();
+        completers.add(completer);
+        var dg = await completer.future;
+        if (dg.data.isEmpty) return null; // Done
+        return utf8.decode(dg.data, allowMalformed: true);
+      });
+
+      klass.define('close', (args) async {
+        var socket = args[0] as RawDatagramSocket;
+        socket.close();
+        udpBuffers.remove(socket);
+        udpCompleters.remove(socket);
+        return null;
+      });
+    });
+
+    Runtime.register("HTTP", (klass) {
+      klass.defineStatic('get', (args) async {
+        var url = args[0] as String;
+        var client = HttpClient();
+        try {
+          var request = await client.getUrl(Uri.parse(url));
+          var response = await request.close();
+          var responseBody = await response.transform(utf8.decoder).join();
+          return responseBody;
+        } finally {
+          client.close();
+        }
+      });
+      
+      klass.defineStatic('post', (args) async {
+        var url = args[0] as String;
+        var body = args[1] as String;
+        var client = HttpClient();
+        try {
+          var request = await client.postUrl(Uri.parse(url));
+          request.headers.set('content-type', 'application/json');
+          request.write(body);
+          var response = await request.close();
+          var responseBody = await response.transform(utf8.decoder).join();
+          return responseBody;
+        } finally {
+          client.close();
+        }
+      });
+    });
 
     Runtime.register("Process", (klass) {
       klass.defineStatic('run', (args) {
@@ -109,46 +378,106 @@ class OuterFunctionRegistry {
       });
     });
 
-    List<String> _buildCurlArgs(String url, String method, dynamic headersMap, {String? body}) {
-        List<String> args = ['-s', '-X', method, '-w', '\n%{http_code}', url];
-        if (headersMap is KlassInstance && headersMap.name == 'Map') {
-            var rawMap = headersMap.getField('_nativeData') as Map;
-            rawMap.forEach((key, value) {
-                args.addAll(['-H', '$key: $value']);
-            });
-        }
-        if (body != null) {
-            args.addAll(['-d', body]);
-        }
-        return args;
-    }
-
-    Map<String, dynamic> _parseCurlResponse(ProcessResult res) {
-        var parts = res.stdout.toString().split('\n');
-        var statusCodeStr = parts.removeLast();
-        var body = parts.join('\n');
-        return {
-            'statusCode': int.tryParse(statusCodeStr) ?? 500,
-            'body': body
-        };
-    }
-
     Runtime.register("Http", (klass) {
-      klass.define('get', (args) {
-          var res = Process.runSync('curl', _buildCurlArgs(args[1] as String, 'GET', args[2]));
-          return _parseCurlResponse(res);
+      klass.defineStatic('get', (args) async {
+          var url = args[0] as String;
+          var client = HttpClient();
+          try {
+            var request = await client.getUrl(Uri.parse(url));
+            if (args.length > 1 && args[1] is KlassInstance && (args[1] as KlassInstance).name == 'Map') {
+              var headersMap = (args[1] as KlassInstance).getField('_nativeData') as Map;
+              headersMap.forEach((key, value) {
+                request.headers.set(key.toString(), value.toString());
+              });
+            }
+            var response = await request.close();
+            var responseBody = await response.transform(utf8.decoder).join();
+            return {
+                'statusCode': response.statusCode,
+                'body': responseBody
+            };
+          } catch (e) {
+            return {'statusCode': 500, 'body': e.toString()};
+          } finally {
+            client.close();
+          }
       });
-      klass.define('post', (args) {
-          var res = Process.runSync('curl', _buildCurlArgs(args[1] as String, 'POST', args[3], body: args[2] as String));
-          return _parseCurlResponse(res);
+      klass.defineStatic('post', (args) async {
+          var url = args[0] as String;
+          var body = args[1] as String;
+          var client = HttpClient();
+          try {
+            var request = await client.postUrl(Uri.parse(url));
+            if (args.length > 2 && args[2] is KlassInstance && (args[2] as KlassInstance).name == 'Map') {
+              var headersMap = (args[2] as KlassInstance).getField('_nativeData') as Map;
+              headersMap.forEach((key, value) {
+                request.headers.set(key.toString(), value.toString());
+              });
+            } else {
+              request.headers.set('content-type', 'application/json');
+            }
+            request.write(body);
+            var response = await request.close();
+            var responseBody = await response.transform(utf8.decoder).join();
+            return {
+                'statusCode': response.statusCode,
+                'body': responseBody
+            };
+          } catch (e) {
+            return {'statusCode': 500, 'body': e.toString()};
+          } finally {
+            client.close();
+          }
       });
-      klass.define('put', (args) {
-          var res = Process.runSync('curl', _buildCurlArgs(args[1] as String, 'PUT', args[3], body: args[2] as String));
-          return _parseCurlResponse(res);
+      klass.defineStatic('put', (args) async {
+          var url = args[0] as String;
+          var body = args[1] as String;
+          var client = HttpClient();
+          try {
+            var request = await client.putUrl(Uri.parse(url));
+            if (args.length > 2 && args[2] is KlassInstance && (args[2] as KlassInstance).name == 'Map') {
+              var headersMap = (args[2] as KlassInstance).getField('_nativeData') as Map;
+              headersMap.forEach((key, value) {
+                request.headers.set(key.toString(), value.toString());
+              });
+            } else {
+              request.headers.set('content-type', 'application/json');
+            }
+            request.write(body);
+            var response = await request.close();
+            var responseBody = await response.transform(utf8.decoder).join();
+            return {
+                'statusCode': response.statusCode,
+                'body': responseBody
+            };
+          } catch (e) {
+            return {'statusCode': 500, 'body': e.toString()};
+          } finally {
+            client.close();
+          }
       });
-      klass.define('delete', (args) {
-          var res = Process.runSync('curl', _buildCurlArgs(args[1] as String, 'DELETE', args[2]));
-          return _parseCurlResponse(res);
+      klass.defineStatic('delete', (args) async {
+          var url = args[0] as String;
+          var client = HttpClient();
+          try {
+            var request = await client.deleteUrl(Uri.parse(url));
+            if (args.length > 1 && args[1] is KlassInstance && (args[1] as KlassInstance).name == 'Map') {
+              var headersMap = (args[1] as KlassInstance).getField('_nativeData') as Map;
+              headersMap.forEach((key, value) {
+                request.headers.set(key.toString(), value.toString());
+              });
+            }
+            var response = await request.close();
+            var responseBody = await response.transform(utf8.decoder).join();
+            return {
+                'statusCode': response.statusCode,
+                'body': responseBody
+            };
+          } catch (e) {
+            return {'statusCode': 500, 'body': e.toString()};
+          } finally {
+            client.close();
+          }
       });
     });
 

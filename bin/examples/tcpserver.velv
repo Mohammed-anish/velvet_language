@@ -1,0 +1,25 @@
+import "socket.velv"
+
+async fn testServer() {
+  print("Starting server on 8080...")
+  auto server = await ServerSocket.bind("127.0.0.1", 8080)
+  
+  print("Client connecting...")
+  auto client = await Socket.connect("127.0.0.1", 8080)
+  
+  print("Server accepting...")
+  auto incoming = await server.accept()
+  
+  print("Client writing...")
+  await client.write("hello from client")
+  
+  print("Server reading...")
+  auto msg = await incoming.read()
+  print("Server got: " + msg)
+  
+  await client.close()
+  await incoming.close()
+  await server.close()
+}
+
+await testServer()

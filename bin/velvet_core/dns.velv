@@ -1,0 +1,3 @@
+class DNS {
+  static outer async fn lookup(host)
+}

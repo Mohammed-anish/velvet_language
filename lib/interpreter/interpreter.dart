@@ -16,34 +16,34 @@ class Interpreter with Scopes {
   Interpreter() {
     OuterFunctionRegistry.register();
   }
-  dynamic execute(Node ast, {List<Map<String, dynamic>>? customScope}) {
+  Future<dynamic> execute(Node ast, {List<Map<String, dynamic>>? customScope}) async {
     if (customScope != null) {
       scopes = customScope;
     }
     if (ast is Programe) {
       if (getGlobal('__object_loaded') == null) {
         scopes.first['__object_loaded'] = true;
-        execute(ImportNode(path: 'object.velv'));
+        await execute(ImportNode(path: 'object.velv'));
       }
       for (final Node node in ast.body) {
-        execute(node);
+        await execute(node);
       }
     }
 
     if (ast is BineryNode) {
       if (ast.op == '&&') {
-        final left = execute(ast.left);
+        final left = await execute(ast.left);
         if (left == false) return false;
-        return execute(ast.right);
+        return await execute(ast.right);
       }
       if (ast.op == '||') {
-        final left = execute(ast.left);
+        final left = await execute(ast.left);
         if (left == true) return true;
-        return execute(ast.right);
+        return await execute(ast.right);
       }
 
-      final left = execute(ast.left);
-      final right = execute(ast.right);
+      final left = await execute(ast.left);
+      final right = await execute(ast.right);
       // print(
       //     'Binary ${ast.op} : left=$left (${left.runtimeType}), right=$right (${right.runtimeType})');
 
@@ -78,28 +78,28 @@ class Interpreter with Scopes {
       }
     }
     if (ast is UnaryExpr) {
-      var right = execute(ast.right);
+      var right = await execute(ast.right);
       if (ast.operator == '-') return -right;
       if (ast.operator == '!') return !right;
       throw Exception('Unknown unary operator: ${ast.operator}');
     }
     if (ast is ExpressionStatement) {
-      execute(ast.value);
+      await execute(ast.value);
     }
 
     if (ast is VariableDeclarationNode) {
       if (ast.kind != 'auto' &&
-          ast.kind != RunTimeType.check(execute(ast.value))) {
-        throw 'Variable needs ${ast.kind} but got ${RunTimeType.check(execute(ast.value))}';
+          ast.kind != RunTimeType.check(await execute(ast.value))) {
+        throw 'Variable needs ${ast.kind} but got ${RunTimeType.check(await execute(ast.value))}';
       }
-      defineVar(ast.name, execute(ast.value));
+      defineVar(ast.name, await execute(ast.value));
 
       if (ast.isReactive) {
         setEmptyReactive(ast.name);
       }
     }
     if (ast case StaticField static) {
-      static.target.setStatic(static.name, execute(static.value));
+      static.target.setStatic(static.name, await execute(static.value));
     }
 
     if (ast is AssignmentNode) {
@@ -107,34 +107,34 @@ class Interpreter with Scopes {
         if (checkReactive(idf.name)) {
           notifyReactive(
             idf.name,
-            execute(ast.value),
-            (nodes) {
+            await execute(ast.value),
+            (nodes) async {
               for (final Node node in nodes) {
                 pushScope();
-                execute(node);
+                await execute(node);
                 popScope();
               }
             },
           );
         }
-        setVar(idf.name, execute(ast.value));
+        setVar(idf.name, await execute(ast.value));
       }
       if (ast.target case MemberAccess member) {
-        if (execute(member.object) case klassObject klass) {
+        if (await execute(member.object) case klassObject klass) {
           if (member.object is IdentifierNode) {
             var className = (member.object as IdentifierNode).name;
             var staticFieldKey = '$className.${member.property}';
             if (Runtime.outerStaticFields.containsKey(staticFieldKey)) {
-              Runtime.outerStaticFields[staticFieldKey] = execute(ast.value);
+              Runtime.outerStaticFields[staticFieldKey] = await execute(ast.value);
               return;
             }
           }
-          klass.setStatic(member.property, execute(ast.value));
+          klass.setStatic(member.property, await execute(ast.value));
 
           return;
         } else {
-          KlassInstance? object = execute(member.object) as KlassInstance?;
-          final value = execute(ast.value);
+          KlassInstance? object = await execute(member.object) as KlassInstance?;
+          final value = await execute(ast.value);
 
           var setterKey = '${object!.name}.${member.property}';
           if (Runtime.outerSetters.containsKey(setterKey)) {
@@ -156,9 +156,9 @@ class Interpreter with Scopes {
         }
       }
       if (ast.target case IndexAccessNode indexNode) {
-        var targetObj = execute(indexNode.target);
-        var indexVal = execute(indexNode.index);
-        var value = execute(ast.value);
+        var targetObj = await execute(indexNode.target);
+        var indexVal = await execute(indexNode.index);
+        var value = await execute(ast.value);
         if (targetObj is KlassInstance) {
           if (targetObj.functions.containsKey('set')) {
             Runtime.call(
@@ -187,14 +187,14 @@ class Interpreter with Scopes {
     if (ast is FunctionCall) {
       if (ast.callee case IdentifierNode idf) {
         if (idf.name == 'eval') {
-          var code = execute(ast.arguments[0]) as String;
+          var code = await execute(ast.arguments[0]) as String;
           var tokenizer = Tokenizer(code);
           tokenizer.tokenize();
           var parser = Parser(tokenizer);
           var parsedAst = parser.parse();
           dynamic lastResult;
           for (var node in (parsedAst as Programe).body) {
-            lastResult = execute(node);
+            lastResult = await execute(node);
           }
           return lastResult;
         }
@@ -202,8 +202,10 @@ class Interpreter with Scopes {
         FunctionDecl? func = functions[idf.name] as FunctionDecl?;
         if (func == null) {
           if (SysFunctions.functions.contains(idf.name)) {
-            List evaluatedArgs =
-                ast.arguments.map((arg) => execute(arg)).toList();
+            List evaluatedArgs = [];
+            for (var arg in ast.arguments) {
+              evaluatedArgs.add(await execute(arg));
+            }
 
             return SysFunctions.execute(idf.name, evaluatedArgs);
           }
@@ -218,11 +220,11 @@ class Interpreter with Scopes {
         pushScope(); //create local scope of variable
 
         for (var i = 0; i < ast.arguments.length; i++) {
-          defineVar(func.arguments[i], execute(ast.arguments[i]));
+          defineVar(func.arguments[i], await execute(ast.arguments[i]));
         }
 
         for (Node function in func.body) {
-          var result = execute(function);
+          var result = await execute(function);
 
           if (result is _ReturnClause) {
             if (func.returnType != null &&
@@ -238,21 +240,21 @@ class Interpreter with Scopes {
 
         popScope();
       } else if (ast.callee case MemberAccess member) {
-        var rawObject = execute(member.object);
+        var rawObject = await execute(member.object);
 
         if (rawObject is klassObject) {
           if (member.object is IdentifierNode) {
             var className = (member.object as IdentifierNode).name;
             var staticMethodKey = '$className.${member.property}';
             if (className == 'Timer' && member.property == 'periodic') {
-              var ms = execute(ast.arguments[0]) as num;
-              var funcName = execute(ast.arguments[1]) as String;
-              Timer.periodic(Duration(milliseconds: ms.toInt()), (timer) {
+              var ms = await execute(ast.arguments[0]) as num;
+              var funcName = await execute(ast.arguments[1]) as String;
+              Timer.periodic(Duration(milliseconds: ms.toInt()), (timer) async {
                 FunctionDecl? func = functions[funcName] as FunctionDecl?;
                 if (func != null) {
                   pushScope();
                   for (Node function in func.body) {
-                    var result = execute(function);
+                    var result = await execute(function);
                     if (result is _ReturnClause) break;
                   }
                   popScope();
@@ -264,14 +266,14 @@ class Interpreter with Scopes {
             }
 
             if (className == 'Timer' && member.property == 'delayed') {
-              var ms = execute(ast.arguments[0]) as num;
-              var funcName = execute(ast.arguments[1]) as String;
-              Timer(Duration(milliseconds: ms.toInt()), () {
+              var ms = await execute(ast.arguments[0]) as num;
+              var funcName = await execute(ast.arguments[1]) as String;
+              Timer(Duration(milliseconds: ms.toInt()), () async {
                 FunctionDecl? func = functions[funcName] as FunctionDecl?;
                 if (func != null) {
                   pushScope();
                   for (Node function in func.body) {
-                    var result = execute(function);
+                    var result = await execute(function);
                     if (result is _ReturnClause) break;
                   }
                   popScope();
@@ -283,8 +285,12 @@ class Interpreter with Scopes {
             }
 
             if (Runtime.outerStaticMethods.containsKey(staticMethodKey)) {
+              List evaluatedArgs = [];
+              for (var e in ast.arguments) {
+                evaluatedArgs.add(await execute(e));
+              }
               return Runtime.outerStaticMethods[staticMethodKey]!(
-                  ast.arguments.map((e) => execute(e)).toList());
+                  evaluatedArgs);
             }
           }
 
@@ -303,11 +309,11 @@ class Interpreter with Scopes {
             }
             pushScope(); //create local scope of variable
             for (var i = 0; i < ast.arguments.length; i++) {
-              defineVar(func.arguments[i], execute(ast.arguments[i]));
+              defineVar(func.arguments[i], await execute(ast.arguments[i]));
             }
 
             for (Node function in func.body) {
-              var result = execute(function);
+              var result = await execute(function);
 
               if (result is _ReturnClause) {
                 if (func.returnType != null &&
@@ -333,6 +339,14 @@ class Interpreter with Scopes {
         if (rawObject is! KlassInstance) {
           String? className =
               Runtime.primitiveClassBindings[rawObject.runtimeType];
+          if (className == null) {
+            for (var entry in Runtime.primitiveTypeChecks) {
+              if (entry.key(rawObject)) {
+                className = entry.value;
+                break;
+              }
+            }
+          }
           if (className == null) {
             if (rawObject is String)
               className = 'String';
@@ -362,9 +376,13 @@ class Interpreter with Scopes {
                 'Function ${member.property}: requires ${func.arguments.length} but got ${ast.arguments.length}');
           }
           if (func.isOuter) {
+            List evaluatedArgs = [];
+            for (var e in ast.arguments) {
+              evaluatedArgs.add(await execute(e));
+            }
             return Runtime.call(
                 '$className.${func.name}',
-                [rawObject, ...ast.arguments.map((e) => execute(e))],
+                [rawObject, ...evaluatedArgs],
                 (func.returnType as IdentifierNode?)?.name);
           }
           throw Exception(
@@ -381,18 +399,22 @@ class Interpreter with Scopes {
         }
         if (func.isOuter) {
           final String? returnType = (func.returnType as IdentifierNode?)?.name;
+          List evaluatedArgs = [];
+          for (var e in ast.arguments) {
+            evaluatedArgs.add(await execute(e));
+          }
           return Runtime.call('${object.name}.${func.name}',
-              [object, ...ast.arguments.map((e) => execute(e))], returnType);
+              [object, ...evaluatedArgs], returnType);
         }
 
         pushScope(); //create local scope of variable
         currentThis = object;
         for (var i = 0; i < ast.arguments.length; i++) {
-          defineVar(func.arguments[i], execute(ast.arguments[i]));
+          defineVar(func.arguments[i], await execute(ast.arguments[i]));
         }
 
         for (Node function in func.body) {
-          var result = execute(function);
+          var result = await execute(function);
 
           if (result is _ReturnClause) {
             if (func.returnType != null &&
@@ -411,7 +433,7 @@ class Interpreter with Scopes {
     }
 
     if (ast is MemberAccess) {
-      var obj = execute(ast.object);
+      var obj = await execute(ast.object);
 
       if (obj is KlassInstance) {
         var val = obj.getField(ast.property);
@@ -441,8 +463,26 @@ class Interpreter with Scopes {
 
           if (staticField != null) {
             return staticField;
-            // return execute(staticField);
+            // return await execute(staticField);
           }
+        }
+      }
+
+      // Check primitive bindings
+      var className = Runtime.primitiveClassBindings[obj.runtimeType];
+      if (className == null) {
+        for (var entry in Runtime.primitiveTypeChecks) {
+          if (entry.key(obj)) {
+            className = entry.value;
+            break;
+          }
+        }
+      }
+      
+      if (className != null) {
+        var getterKey = '$className.${ast.property}';
+        if (Runtime.outerGetters.containsKey(getterKey)) {
+          return Runtime.outerGetters[getterKey]!([obj]);
         }
       }
     }
@@ -450,31 +490,34 @@ class Interpreter with Scopes {
       return getVar(ast.name);
     }
     if (ast is ArrayNode) {
-      var elements = ast.elements.map((e) => execute(e)).toList();
+      var elements = [];
+      for (var e in ast.elements) {
+        elements.add(await execute(e));
+      }
       klassObject? listClass = getGlobal('List') as klassObject?;
       if (listClass == null)
         throw Exception(
             'List class not found. Ensure core object.velv is imported.');
-      var instance = listClass.instanciate('List', execute);
+      var instance = await listClass.instanciate('List', execute);
       instance.setField('_nativeData', elements);
       return instance;
     }
     if (ast is MapNode) {
       Map<dynamic, dynamic> map = {};
-      ast.entries.forEach((k, v) {
-        map[execute(k)] = execute(v);
-      });
+      for (var entry in ast.entries.entries) {
+        map[await execute(entry.key)] = await execute(entry.value);
+      }
       klassObject? mapClass = getGlobal('Map') as klassObject?;
       if (mapClass == null)
         throw Exception(
             'Map class not found. Ensure core object.velv is imported.');
-      var instance = mapClass.instanciate('Map', execute);
+      var instance = await mapClass.instanciate('Map', execute);
       instance.setField('_nativeData', map);
       return instance;
     }
     if (ast is IndexAccessNode) {
-      var targetObj = execute(ast.target);
-      var indexVal = execute(ast.index);
+      var targetObj = await execute(ast.target);
+      var indexVal = await execute(ast.index);
       if (targetObj is KlassInstance) {
         if (targetObj.functions.containsKey('get')) {
           return Runtime.call(
@@ -496,15 +539,15 @@ class Interpreter with Scopes {
       return currentThis;
     }
     if (ast is ReturnNode) {
-      return _ReturnClause(execute(ast.value));
+      return _ReturnClause(await execute(ast.value));
     }
 
     if (ast is IfNode) {
-      var result = execute(ast.condition);
+      var result = await execute(ast.condition);
       if (result == true) {
         pushScope();
         for (var c in ast.ifBlock) {
-          var r = execute(c);
+          var r = await execute(c);
           if (r is _ReturnClause) {
             popScope();
             return r;
@@ -516,7 +559,7 @@ class Interpreter with Scopes {
       if (result == false && ast.elseNode != null) {
         for (var c in ast.elseNode!) {
           pushScope();
-          var r = execute(c);
+          var r = await execute(c);
           popScope();
           if (r is _ReturnClause) {
             return r;
@@ -529,25 +572,25 @@ class Interpreter with Scopes {
     }
     if (ast is PrintNode) {
       if (ast.value == null) return;
-      print(execute(ast.value!));
+      print(await execute(ast.value!));
     }
     if (ast is LoopStatement) {
-      int times = execute(ast.iterationTimes);
+      int times = await execute(ast.iterationTimes);
       for (var i = 0; i < times; i++) {
         pushScope();
 
         defineVar(ast.indexName ?? 'index', i);
         for (var j = 0; j < ast.body.length; j++) {
-          execute(ast.body[j]);
+          await execute(ast.body[j]);
         }
         popScope();
       }
     }
     if (ast is WhileNode) {
-      while (execute(ast.condition) == true) {
+      while (await execute(ast.condition) == true) {
         pushScope();
         for (var node in ast.body) {
-          execute(node);
+          await execute(node);
         }
         popScope();
       }
@@ -556,16 +599,16 @@ class Interpreter with Scopes {
     if (ast is ForNode) {
       pushScope();
       if (ast.init != null) {
-        execute(ast.init!);
+        await execute(ast.init!);
       }
-      while (ast.condition == null || execute(ast.condition!) == true) {
+      while (ast.condition == null || await execute(ast.condition!) == true) {
         pushScope();
         for (var node in ast.body) {
-          execute(node);
+          await execute(node);
         }
         popScope();
         if (ast.update != null) {
-          execute(ast.update!);
+          await execute(ast.update!);
         }
       }
       popScope();
@@ -575,7 +618,7 @@ class Interpreter with Scopes {
       try {
         pushScope();
         for (var node in ast.tryBlock) {
-          final res = execute(node);
+          final res = await execute(node);
           if (res != null) {
             popScope();
             return res;
@@ -595,7 +638,7 @@ class Interpreter with Scopes {
           defineVar(ast.catchVar!, errStr);
         }
         for (var node in ast.catchBlock) {
-          final res = execute(node);
+          final res = await execute(node);
           if (res != null) {
             popScope();
             return res;
@@ -605,19 +648,21 @@ class Interpreter with Scopes {
       }
     }
 
+    if (ast is AwaitNode) {
+      return await execute(ast.expression);
+    }
+
     if (ast is ThrowNode) {
-      var value = execute(ast.expression);
+      var value = await execute(ast.expression);
       throw Exception(value.toString());
     }
 
     if (ast is ClassDeclration) {
-      setGlobal(
-        ast.name,
-        klassObject(
-            execute: execute,
-            fields: ast.body.whereType<VariableDeclarationNode>().toList(),
-            methods: ast.body.whereType<FunctionDecl>().toList()),
-      );
+      var klass = klassObject(
+          fields: ast.body.whereType<VariableDeclarationNode>().toList(),
+          methods: ast.body.whereType<FunctionDecl>().toList());
+      setGlobal(ast.name, klass);
+      await klass.initStatics(execute);
     }
     if (ast is ImportNode) {
       var file = File(ast.path);
@@ -632,7 +677,7 @@ class Interpreter with Scopes {
       }
       Tokenizer tokenizer = Tokenizer(file.readAsStringSync())..tokenize();
       Programe parsed = Parser(tokenizer).parse();
-      execute(parsed);
+      await execute(parsed);
     }
     if (ast is NewClassInstance) {
       klassObject? klass = getGlobal(ast.name) as klassObject?;
@@ -640,7 +685,7 @@ class Interpreter with Scopes {
         throw Exception('Class name ${ast.name} is not defined');
       }
 
-      var instance = klass.instanciate(ast.name, execute);
+      var instance = await klass.instanciate(ast.name, execute);
 
       // Check for constructor
       FunctionDecl? initMethod;
@@ -652,19 +697,23 @@ class Interpreter with Scopes {
       }
       if (initMethod != null) {
         if (initMethod.isOuter) {
+          List evaluatedArgs = [];
+          for (var e in ast.args) {
+            evaluatedArgs.add(await execute(e));
+          }
           Runtime.call('${ast.name}.init',
-              [instance, ...ast.args.map((e) => execute(e))], null);
+              [instance, ...evaluatedArgs], null);
         } else {
           pushScope();
           var prevThis = currentThis;
           currentThis = instance;
           for (int i = 0; i < ast.args.length; i++) {
             if (i < initMethod.arguments.length) {
-              defineVar(initMethod.arguments[i], execute(ast.args[i]));
+              defineVar(initMethod.arguments[i], await execute(ast.args[i]));
             }
           }
           for (var node in initMethod.body) {
-            execute(node);
+            await execute(node);
           }
           currentThis = prevThis;
           popScope();

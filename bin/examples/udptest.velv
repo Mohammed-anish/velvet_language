@@ -1,0 +1,21 @@
+import "udpsocket.velv"
+
+async fn testUDP() {
+  print("Binding UDP Server on 8081...")
+  auto server = await UDPSocket.bind("127.0.0.1", 8081)
+  
+  print("Client binding...")
+  auto client = await UDPSocket.bind("127.0.0.1", 0)
+  
+  print("Client sending...")
+  await client.send("hello from udp client", "127.0.0.1", 8081)
+  
+  print("Server receiving...")
+  auto msg = await server.receive()
+  print("Server got: " + msg)
+  
+  await client.close()
+  await server.close()
+}
+
+await testUDP()

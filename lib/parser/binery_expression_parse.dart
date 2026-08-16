@@ -74,6 +74,11 @@ mixin BineryOperations on CoreParser {
       final right = unary();
       return UnaryExpr(op.value, right);
     }
+    if (match(TType.awaitKw)) {
+      advance();
+      final right = unary();
+      return AwaitNode(expression: right);
+    }
     return call();
   }
 

@@ -1,0 +1,12 @@
+class URL {
+  auto scheme = null
+  auto host = null
+  auto port = null
+  auto path = null
+  auto query = null
+  auto fragment = null
+  auto userInfo = null
+  auto authority = null
+
+  static outer fn parse(urlString)
+}

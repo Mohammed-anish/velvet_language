@@ -1,0 +1,12 @@
+class Socket {
+  static outer async fn connect(host, port)
+  outer async fn write(data)
+  outer async fn close()
+  outer async fn read()
+}
+
+class ServerSocket {
+  static outer async fn bind(host, port)
+  outer async fn accept()
+  outer async fn close()
+}

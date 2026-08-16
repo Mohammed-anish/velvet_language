@@ -1,0 +1,17 @@
+import "socket.velv"
+
+async fn testTCP() {
+  print("Connecting to google.com:80...")
+  auto s = await Socket.connect("google.com", 80)
+  print("Connected!")
+  
+  await s.write("GET / HTTP/1.1\r\nHost: google.com\r\nConnection: close\r\n\r\n")
+  
+  print("Reading response:")
+  auto response = await s.read()
+  print(response)
+  
+  await s.close()
+}
+
+await testTCP()

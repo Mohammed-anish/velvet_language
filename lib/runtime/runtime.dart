@@ -47,8 +47,14 @@ class Runtime {
     DateTime: 'DateTime',
   };
 
+  static List<MapEntry<bool Function(dynamic), String>> primitiveTypeChecks = [];
+
   static void bindPrimitive(Type dartType, String velvetClassName) {
     primitiveClassBindings[dartType] = velvetClassName;
+  }
+
+  static void bindPrimitiveTypeCheck(bool Function(dynamic) check, String velvetClassName) {
+    primitiveTypeChecks.add(MapEntry(check, velvetClassName));
   }
 
   static void register(String name, void Function(KlassBuilder klass) builder) {

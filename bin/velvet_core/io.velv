@@ -14,8 +14,8 @@ class File {
 }
 
 class Http {
-    outer fn get(url, headers)
-    outer fn post(url, body, headers)
-    outer fn put(url, body, headers)
-    outer fn delete(url, headers)
+    static outer async fn get(url, headers)
+    static outer async fn post(url, body, headers)
+    static outer async fn put(url, body, headers)
+    static outer async fn delete(url, headers)
 }

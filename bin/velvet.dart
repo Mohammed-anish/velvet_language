@@ -7,13 +7,13 @@ import 'package:velvet_cmp/parser/parser.dart';
 
 bool isJsBuild = identical(1, 1.0);
 
-void main(List<String> args) {
+void main(List<String> args) async {
   Tokenizer tokenizer = Tokenizer(read(args))..tokenize();
   // print(tokenizer.tokens.map((t) => t.type.name).join(', '));
 
   Programe parse = Parser(tokenizer).parse();
   // print(parse);
-  Interpreter().execute(parse);
+  await Interpreter().execute(parse);
 }
 
 read(List<String> args) {

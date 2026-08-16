@@ -34,7 +34,7 @@ class Parser extends CoreParser with BineryOperations {
       return parseWhileStatement();
     } else if (match(TType.for_)) {
       return parseForStatement();
-    } else if (match(TType.fn)) {
+    } else if (match(TType.fn) || match(TType.asyncKw)) {
       return parseFunction();
     } else if (match(TType.return_)) {
       return parseReturnStatement();
@@ -98,16 +98,16 @@ class Parser extends CoreParser with BineryOperations {
         if (anyMatch([TType.auto, TType.boolean, TType.identifier]) &&
             matchNext(TType.identifier)) {
           return parseVariableDecl(isField: true, isStatic: true);
-        } else if (match(TType.outer) && matchNext(TType.fn) ||
-            match(TType.fn)) {
+        } else if ((match(TType.outer) && (matchNext(TType.fn) || matchNext(TType.asyncKw))) ||
+            match(TType.fn) || match(TType.asyncKw)) {
           return parseFunction(isStatic: true);
         }
       } else {
         if (anyMatch([TType.auto, TType.boolean, TType.identifier]) &&
             matchNext(TType.identifier)) {
           return parseVariableDecl(isField: true);
-        } else if (match(TType.outer) && matchNext(TType.fn) ||
-            match(TType.fn)) {
+        } else if ((match(TType.outer) && (matchNext(TType.fn) || matchNext(TType.asyncKw))) ||
+            match(TType.fn) || match(TType.asyncKw)) {
           return parseFunction();
         }
       }
@@ -206,6 +206,7 @@ class Parser extends CoreParser with BineryOperations {
     IdentifierNode? returnType;
     List<String> parameters = [];
     Token? outer = eat(TType.outer, isOptional: true);
+    Token? asyncKw = eat(TType.asyncKw, isOptional: true);
     eat(TType.fn);
     // print('examin ${current().type} ${getNext()?.type}');
     if ((current().type == TType.identifier || current().type == TType.auto) &&
@@ -245,6 +246,7 @@ class Parser extends CoreParser with BineryOperations {
         body: body,
         isStatic: isStatic,
         isOuter: outer != null,
+        isAsync: asyncKw != null,
         arguments: parameters);
   }
 

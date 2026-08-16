@@ -1,0 +1,9 @@
+async fn delayTest() {
+  print("Start delay")
+  
+  // Create a Future using Timer.delayed indirectly or we can test using an async outer function if we had one.
+  // Wait, we haven't exposed an async sys function yet.
+  // Let's create an async sys function `sleep` just to test this.
+}
+
+delayTest()
