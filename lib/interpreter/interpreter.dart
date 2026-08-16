@@ -664,6 +664,20 @@ class Interpreter with Scopes {
       setGlobal(ast.name, klass);
       await klass.initStatics(execute);
     }
+    if (ast is StateDeclration) {
+      var stateFields = ast.values.map((val) => VariableDeclarationNode(
+          name: val,
+          kind: 'auto',
+          value: StringNode(val),
+          isStatic: true,
+          isField: true,
+          isReactive: false)).toList();
+      var stateKlass = klassObject(fields: stateFields, methods: []);
+      for (var val in ast.values) {
+        stateKlass.setStatic(val, val); // Set value to string representation
+      }
+      setGlobal(ast.name, stateKlass);
+    }
     if (ast is ImportNode) {
       var file = File(ast.path);
       if (!file.existsSync()) {

@@ -96,5 +96,6 @@ enum TType {
   static,
   new_,
   this_,
-  outer, derives
+  outer, derives,
+  state_
 }

@@ -268,6 +268,7 @@ class Tokenizer {
       'this': TType.this_,
       'outer': TType.outer,
       'derives': TType.derives,
+      'state': TType.state_,
       'try': TType.try_,
       'catch': TType.catch_,
       'throw': TType.throw_,

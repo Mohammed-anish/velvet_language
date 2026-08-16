@@ -50,6 +50,8 @@ class Parser extends CoreParser with BineryOperations {
       return parseThrowStatement();
     } else if (match(TType.class_)) {
       return classDeclaration();
+    } else if (match(TType.state_)) {
+      return parseStateDeclration();
     } else if (match(TType.new_)) {
       return classInstanciate();
     } else {
@@ -88,6 +90,26 @@ class Parser extends CoreParser with BineryOperations {
 
     return ClassDeclration(
         body: body, name: name!.value, superClasses: superClasses);
+  }
+
+  Node parseStateDeclration() {
+    eat(TType.state_);
+    Token? name = eat(TType.identifier);
+    eat(TType.lBrace);
+    
+    List<String> values = [];
+    while (!match(TType.rBrace) && !isEof()) {
+      eatNewLines();
+      if (match(TType.rBrace)) break;
+      Token? valToken = eat(TType.identifier);
+      if (valToken != null) {
+        values.add(valToken.value);
+      }
+      eatNewLines();
+    }
+    
+    eat(TType.rBrace);
+    return StateDeclration(name: name!.value, values: values);
   }
 
   List<Node> classBody() {

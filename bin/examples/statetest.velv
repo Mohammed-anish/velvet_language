@@ -1,0 +1,13 @@
+state Connection {
+    disconnected
+    connecting
+    connected
+}
+
+print("State 1: " + Connection.disconnected)
+print("State 2: " + Connection.connecting)
+
+auto current = Connection.connecting
+if (current == Connection.connecting) {
+    print("Match successful! Currently connecting.")
+}

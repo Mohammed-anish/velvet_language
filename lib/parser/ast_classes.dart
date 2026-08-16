@@ -230,6 +230,16 @@ class ClassDeclration extends Node {
       'ClassDeclration(name: $name,superClasses:$superClasses, body: $body )';
 }
 
+class StateDeclration extends Node {
+  final String name;
+  final List<String> values;
+
+  StateDeclration({required this.name, required this.values});
+
+  @override
+  String toString() => 'StateDeclration(name: $name, values: $values)';
+}
+
 class NewClassInstance extends Node {
   final String name;
   final List<Node> args;
