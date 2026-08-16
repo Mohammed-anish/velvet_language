@@ -1,6 +1,8 @@
 class UDPSocket {
   static outer async fn bind(host, port)
   outer async fn send(data, host, port)
+  outer async fn sendBytes(buffer, host, port)
   outer async fn receive()
+  outer async fn receiveBytes()
   outer async fn close()
 }

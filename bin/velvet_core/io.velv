@@ -5,12 +5,31 @@ class File {
         this.path = path
     }
 
-    outer fn create()
-    outer fn delete()
-    outer fn exists()
-    outer fn readAsString()
-    outer fn writeAsString(content)
-    outer fn appendAsString(content)
+    outer async fn create()
+    outer async fn delete()
+    outer async fn exists()
+    outer async fn readAsString()
+    outer async fn writeAsString(content)
+    outer async fn appendAsString(content)
+    outer async fn readAsBytes()
+    outer async fn writeAsBytes(buffer)
+    outer async fn copy(newPath)
+    outer async fn rename(newPath)
+}
+
+class Folder {
+    String path = ""
+    
+    fn init(path) {
+        this.path = path
+    }
+
+    outer async fn create(recursive)
+    outer async fn delete(recursive)
+    outer async fn exists()
+    outer async fn list(recursive)
+    
+    static outer fn current()
 }
 
 class Http {

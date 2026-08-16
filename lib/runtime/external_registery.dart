@@ -48,6 +48,34 @@ class OuterFunctionRegistry {
     Runtime.bindPrimitiveTypeCheck((obj) => obj is Socket, 'Socket');
     Runtime.bindPrimitive(ServerSocket, 'ServerSocket');
     Runtime.bindPrimitiveTypeCheck((obj) => obj is ServerSocket, 'ServerSocket');
+    Runtime.bindPrimitive(Uint8List, 'Buffer');
+    Runtime.bindPrimitiveTypeCheck((obj) => obj is Uint8List, 'Buffer');
+
+    Runtime.register("Buffer", (klass) {
+      klass.defineStatic('alloc', (args) {
+        return Uint8List((args[0] as num).toInt());
+      });
+      klass.defineStatic('fromUtf8', (args) {
+        return Uint8List.fromList(utf8.encode(args[0] as String));
+      });
+      klass.define('toUtf8', (args) {
+        var buffer = args[0] as Uint8List;
+        return utf8.decode(buffer, allowMalformed: true);
+      });
+      klass.define('length', (args) {
+        var buffer = args[0] as Uint8List;
+        return buffer.length;
+      });
+      klass.define('get', (args) {
+        var buffer = args[0] as Uint8List;
+        return buffer[(args[1] as num).toInt()];
+      });
+      klass.define('set', (args) {
+        var buffer = args[0] as Uint8List;
+        buffer[(args[1] as num).toInt()] = (args[2] as num).toInt();
+        return null;
+      });
+    });
 
     final socketBuffers = <Socket, List<List<int>>>{};
     final socketCompleters = <Socket, List<dart_async.Completer<List<int>>>>{};
@@ -88,6 +116,14 @@ class OuterFunctionRegistry {
         return null;
       });
 
+      klass.define('writeAsBytes', (args) async {
+        var socket = args[0] as Socket;
+        var data = args[1] as Uint8List;
+        socket.add(data);
+        await socket.flush();
+        return null;
+      });
+
       klass.define('read', (args) async {
         var socket = args[0] as Socket;
         var buffer = socketBuffers[socket]!;
@@ -102,6 +138,21 @@ class OuterFunctionRegistry {
         var data = await completer.future;
         if (data.isEmpty) return "";
         return utf8.decode(data, allowMalformed: true);
+      });
+
+      klass.define('readAsBytes', (args) async {
+        var socket = args[0] as Socket;
+        var buffer = socketBuffers[socket]!;
+        var completers = socketCompleters[socket]!;
+        
+        if (buffer.isNotEmpty) {
+          return Uint8List.fromList(buffer.removeAt(0));
+        }
+        
+        var completer = dart_async.Completer<List<int>>();
+        completers.add(completer);
+        var data = await completer.future;
+        return Uint8List.fromList(data);
       });
 
       klass.define('close', (args) async {
@@ -232,6 +283,18 @@ class OuterFunctionRegistry {
         return null;
       });
 
+      klass.define('sendBytes', (args) async {
+        var socket = args[0] as RawDatagramSocket;
+        var data = args[1] as Uint8List;
+        var host = args[2] as String;
+        var port = (args[3] as num).toInt();
+        var addresses = await InternetAddress.lookup(host);
+        if (addresses.isNotEmpty) {
+          socket.send(data, addresses.first, port);
+        }
+        return null;
+      });
+
       klass.define('receive', (args) async {
         var socket = args[0] as RawDatagramSocket;
         var buffer = udpBuffers[socket]!;
@@ -250,11 +313,172 @@ class OuterFunctionRegistry {
         return utf8.decode(dg.data, allowMalformed: true);
       });
 
+      klass.define('receiveBytes', (args) async {
+        var socket = args[0] as RawDatagramSocket;
+        var buffer = udpBuffers[socket]!;
+        var completers = udpCompleters[socket]!;
+
+        if (buffer.isNotEmpty) {
+          var dg = buffer.removeAt(0);
+          if (dg.data.isEmpty) return null; // Done
+          return Uint8List.fromList(dg.data);
+        }
+
+        var completer = dart_async.Completer<Datagram>();
+        completers.add(completer);
+        var dg = await completer.future;
+        if (dg.data.isEmpty) return null; // Done
+        return Uint8List.fromList(dg.data);
+      });
+
       klass.define('close', (args) async {
         var socket = args[0] as RawDatagramSocket;
         socket.close();
         udpBuffers.remove(socket);
         udpCompleters.remove(socket);
+        return null;
+      });
+    });
+
+    Runtime.bindPrimitive(WebSocket, 'WebSocketClient');
+    Runtime.bindPrimitiveTypeCheck((obj) => obj is WebSocket, 'WebSocketClient');
+
+    final wsBuffers = <WebSocket, List<dynamic>>{};
+    final wsCompleters = <WebSocket, List<dart_async.Completer<dynamic>>>{};
+
+    Runtime.register("WebSocketClient", (klass) {
+      klass.defineStatic('connect', (args) async {
+        var url = args[0] as String;
+        var ws = await WebSocket.connect(url);
+        
+        wsBuffers[ws] = [];
+        wsCompleters[ws] = [];
+        
+        ws.listen((data) {
+          if (wsCompleters[ws] != null && wsCompleters[ws]!.isNotEmpty) {
+            var c = wsCompleters[ws]!.removeAt(0);
+            c.complete(data);
+          } else if (wsBuffers[ws] != null) {
+            wsBuffers[ws]!.add(data);
+          }
+        }, onDone: () {
+          if (wsCompleters[ws] != null) {
+            for (var c in wsCompleters[ws]!) {
+              c.complete(null);
+            }
+            wsCompleters[ws]!.clear();
+          }
+        });
+        
+        return ws;
+      });
+
+      klass.define('send', (args) async {
+        var ws = args[0] as WebSocket;
+        ws.add(args[1]); // Can be String or Uint8List
+        return null;
+      });
+
+      klass.define('receive', (args) async {
+        var ws = args[0] as WebSocket;
+        var buffer = wsBuffers[ws]!;
+        var completers = wsCompleters[ws]!;
+
+        if (buffer.isNotEmpty) {
+          var data = buffer.removeAt(0);
+          return data is List<int> ? Uint8List.fromList(data) : data;
+        }
+
+        var completer = dart_async.Completer<dynamic>();
+        completers.add(completer);
+        var data = await completer.future;
+        if (data == null) return null;
+        return data is List<int> ? Uint8List.fromList(data) : data;
+      });
+
+      klass.define('close', (args) async {
+        var ws = args[0] as WebSocket;
+        await ws.close();
+        wsBuffers.remove(ws);
+        wsCompleters.remove(ws);
+        return null;
+      });
+    });
+
+    Runtime.bindPrimitive(HttpServer, 'WebSocketServer');
+    Runtime.bindPrimitiveTypeCheck((obj) => obj is HttpServer, 'WebSocketServer');
+
+    final wsServerBuffers = <HttpServer, List<WebSocket>>{};
+    final wsServerCompleters = <HttpServer, List<dart_async.Completer<WebSocket>>>{};
+
+    Runtime.register("WebSocketServer", (klass) {
+      klass.defineStatic('bind', (args) async {
+        var host = args[0] as String;
+        var port = (args[1] as num).toInt();
+        var server = await HttpServer.bind(host, port);
+        
+        wsServerBuffers[server] = [];
+        wsServerCompleters[server] = [];
+        
+        server.listen((HttpRequest request) {
+          if (WebSocketTransformer.isUpgradeRequest(request)) {
+            WebSocketTransformer.upgrade(request).then((WebSocket ws) {
+              // Setup buffer for the incoming WebSocket so the user can use it immediately!
+              wsBuffers[ws] = [];
+              wsCompleters[ws] = [];
+              
+              ws.listen((data) {
+                if (wsCompleters[ws] != null && wsCompleters[ws]!.isNotEmpty) {
+                  var c = wsCompleters[ws]!.removeAt(0);
+                  c.complete(data);
+                } else if (wsBuffers[ws] != null) {
+                  wsBuffers[ws]!.add(data);
+                }
+              }, onDone: () {
+                if (wsCompleters[ws] != null) {
+                  for (var c in wsCompleters[ws]!) {
+                    c.complete(null);
+                  }
+                  wsCompleters[ws]!.clear();
+                }
+              });
+
+              if (wsServerCompleters[server]!.isNotEmpty) {
+                var c = wsServerCompleters[server]!.removeAt(0);
+                c.complete(ws);
+              } else {
+                wsServerBuffers[server]!.add(ws);
+              }
+            });
+          } else {
+            // Not a WebSocket request, close it
+            request.response.statusCode = HttpStatus.badRequest;
+            request.response.close();
+          }
+        });
+        
+        return server;
+      });
+
+      klass.define('accept', (args) async {
+        var server = args[0] as HttpServer;
+        var buffer = wsServerBuffers[server]!;
+        var completers = wsServerCompleters[server]!;
+        
+        if (buffer.isNotEmpty) {
+          return buffer.removeAt(0);
+        }
+        
+        var completer = dart_async.Completer<WebSocket>();
+        completers.add(completer);
+        return await completer.future;
+      });
+
+      klass.define('close', (args) async {
+        var server = args[0] as HttpServer;
+        await server.close();
+        wsServerBuffers.remove(server);
+        wsServerCompleters.remove(server);
         return null;
       });
     });
@@ -348,33 +572,82 @@ class OuterFunctionRegistry {
     });
 
     Runtime.register("File", (klass) {
-      klass.define('create', (args) {
+      klass.define('create', (args) async {
           var instance = args[0] as KlassInstance;
-          File(instance.getField('path') as String).createSync(recursive: true);
+          await File(instance.getField('path') as String).create(recursive: true);
           return null;
       });
-      klass.define('delete', (args) {
+      klass.define('delete', (args) async {
           var instance = args[0] as KlassInstance;
-          File(instance.getField('path') as String).deleteSync();
+          await File(instance.getField('path') as String).delete();
           return null;
       });
-      klass.define('exists', (args) {
+      klass.define('exists', (args) async {
           var instance = args[0] as KlassInstance;
-          return File(instance.getField('path') as String).existsSync();
+          return await File(instance.getField('path') as String).exists();
       });
-      klass.define('readAsString', (args) {
+      klass.define('readAsString', (args) async {
           var instance = args[0] as KlassInstance;
-          return File(instance.getField('path') as String).readAsStringSync();
+          return await File(instance.getField('path') as String).readAsString();
       });
-      klass.define('writeAsString', (args) {
+      klass.define('writeAsString', (args) async {
           var instance = args[0] as KlassInstance;
-          File(instance.getField('path') as String).writeAsStringSync(args[1] as String);
+          await File(instance.getField('path') as String).writeAsString(args[1] as String);
           return null;
       });
-      klass.define('appendAsString', (args) {
+      klass.define('appendAsString', (args) async {
           var instance = args[0] as KlassInstance;
-          File(instance.getField('path') as String).writeAsStringSync(args[1] as String, mode: FileMode.append);
+          await File(instance.getField('path') as String).writeAsString(args[1] as String, mode: FileMode.append);
           return null;
+      });
+      klass.define('readAsBytes', (args) async {
+          var instance = args[0] as KlassInstance;
+          var bytes = await File(instance.getField('path') as String).readAsBytes();
+          return Uint8List.fromList(bytes);
+      });
+      klass.define('writeAsBytes', (args) async {
+          var instance = args[0] as KlassInstance;
+          await File(instance.getField('path') as String).writeAsBytes(args[1] as Uint8List);
+          return null;
+      });
+      klass.define('copy', (args) async {
+          var instance = args[0] as KlassInstance;
+          await File(instance.getField('path') as String).copy(args[1] as String);
+          return null;
+      });
+      klass.define('rename', (args) async {
+          var instance = args[0] as KlassInstance;
+          await File(instance.getField('path') as String).rename(args[1] as String);
+          return null;
+      });
+    });
+
+    Runtime.register("Folder", (klass) {
+      klass.define('create', (args) async {
+          var instance = args[0] as KlassInstance;
+          var recursive = args.length > 1 ? args[1] as bool : false;
+          await Directory(instance.getField('path') as String).create(recursive: recursive);
+          return null;
+      });
+      klass.define('delete', (args) async {
+          var instance = args[0] as KlassInstance;
+          var recursive = args.length > 1 ? args[1] as bool : false;
+          await Directory(instance.getField('path') as String).delete(recursive: recursive);
+          return null;
+      });
+      klass.define('exists', (args) async {
+          var instance = args[0] as KlassInstance;
+          return await Directory(instance.getField('path') as String).exists();
+      });
+      klass.define('list', (args) async {
+          var instance = args[0] as KlassInstance;
+          var recursive = args.length > 1 ? args[1] as bool : false;
+          var entities = await Directory(instance.getField('path') as String).list(recursive: recursive).toList();
+          // We will return a Dart List of strings, Velvet automatically converts it
+          return entities.map((e) => e.path).toList();
+      });
+      klass.defineStatic('current', (args) {
+          return Directory.current.path;
       });
     });
 
@@ -501,25 +774,21 @@ class OuterFunctionRegistry {
 
     Runtime.register("List", (klass) {
       klass.define('add', (args) {
-        var instance = args[0] as KlassInstance;
-        var list = instance.getField('_nativeData') as List;
+        var list = args[0] is KlassInstance ? (args[0] as KlassInstance).getField('_nativeData') as List : args[0] as List;
         list.add(args[1]);
         return null;
       });
       klass.define('get', (args) {
-        var instance = args[0] as KlassInstance;
-        var list = instance.getField('_nativeData') as List;
-        return list[args[1]];
+        var list = args[0] is KlassInstance ? (args[0] as KlassInstance).getField('_nativeData') as List : args[0] as List;
+        return list[(args[1] as num).toInt()];
       });
       klass.define('set', (args) {
-        var instance = args[0] as KlassInstance;
-        var list = instance.getField('_nativeData') as List;
-        list[args[1]] = args[2];
+        var list = args[0] is KlassInstance ? (args[0] as KlassInstance).getField('_nativeData') as List : args[0] as List;
+        list[(args[1] as num).toInt()] = args[2];
         return null;
       });
       klass.define('length', (args) {
-        var instance = args[0] as KlassInstance;
-        var list = instance.getField('_nativeData') as List;
+        var list = args[0] is KlassInstance ? (args[0] as KlassInstance).getField('_nativeData') as List : args[0] as List;
         return list.length;
       });
     });

@@ -1,0 +1,8 @@
+class Buffer {
+  static outer fn alloc(size)
+  static outer fn fromUtf8(string)
+  outer fn toUtf8()
+  outer fn length()
+  outer fn get(index)
+  outer fn set(index, value)
+}

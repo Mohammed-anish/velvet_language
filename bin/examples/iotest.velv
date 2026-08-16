@@ -1,0 +1,31 @@
+import "io.velv"
+import "binary.velv"
+
+async fn testIO() {
+  print("Current dir: " + Folder.current())
+  
+  auto folder = new Folder("test_folder")
+  await folder.create(true)
+  print("Folder created")
+  
+  auto file = new File("test_folder/test.txt")
+  await file.writeAsString("Hello file system!")
+  print("File written")
+  
+  auto read = await file.readAsString()
+  print("Read back: " + read)
+  
+  auto buffer = Buffer.fromUtf8("Binary data!")
+  await file.writeAsBytes(buffer)
+  
+  auto readBuf = await file.readAsBytes()
+  print("Read binary: " + readBuf.toUtf8())
+  
+  auto files = await folder.list(false)
+  print("Files in folder: " + files.length())
+  
+  await folder.delete(true)
+  print("Cleaned up")
+}
+
+await testIO()

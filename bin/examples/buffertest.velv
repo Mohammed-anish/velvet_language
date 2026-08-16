@@ -1,0 +1,16 @@
+import "binary.velv"
+
+async fn testBuffer() {
+  auto buf = Buffer.fromUtf8("Hello Buffer!")
+  print("Buffer length: " + buf.length())
+  print("First byte: " + buf.get(0))
+  print("String: " + buf.toUtf8())
+
+  auto alloc = Buffer.alloc(3)
+  alloc.set(0, 65)
+  alloc.set(1, 66)
+  alloc.set(2, 67)
+  print("Allocated buffer string: " + alloc.toUtf8())
+}
+
+await testBuffer()

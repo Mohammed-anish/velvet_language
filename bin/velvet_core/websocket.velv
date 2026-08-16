@@ -1,0 +1,12 @@
+class WebSocketClient {
+    static outer async fn connect(url)
+    outer async fn send(data)
+    outer async fn receive()
+    outer async fn close()
+}
+
+class WebSocketServer {
+    static outer async fn bind(host, port)
+    outer async fn accept()
+    outer async fn close()
+}

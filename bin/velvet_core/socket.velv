@@ -1,8 +1,10 @@
 class Socket {
   static outer async fn connect(host, port)
   outer async fn write(data)
-  outer async fn close()
+  outer async fn writeAsBytes(buffer)
   outer async fn read()
+  outer async fn readAsBytes()
+  outer async fn close()
 }
 
 class ServerSocket {

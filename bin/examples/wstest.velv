@@ -1,0 +1,29 @@
+import "websocket.velv"
+
+async fn testWS() {
+  print("Starting WS Server on port 4040...")
+  auto server = await WebSocketServer.bind("127.0.0.1", 4040)
+  
+  print("Client connecting to WS Server...")
+  auto client = await WebSocketClient.connect("ws://127.0.0.1:4040")
+  
+  print("Server accepting connection...")
+  auto incoming = await server.accept()
+  
+  print("Client sending message...")
+  await client.send("Hello WebSocket!")
+  
+  auto msg = await incoming.receive()
+  print("Server received: " + msg)
+  
+  await incoming.send("Echo: " + msg)
+  
+  auto response = await client.receive()
+  print("Client received: " + response)
+  
+  await client.close()
+  await incoming.close()
+  await server.close()
+}
+
+await testWS()
