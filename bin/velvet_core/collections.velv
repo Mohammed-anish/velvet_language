@@ -1,0 +1,858 @@
+//
+// collections.velv
+// Velvet Collection Library
+//
+// Provides:
+// - Queue
+// - Stack
+// - Set
+// - LinkedList
+// - Collection utilities
+//
+
+
+// ============================================================
+// COLLECTION UTILITIES
+// ============================================================
+
+class Collections {
+
+    // --------------------------------------------------------
+    // Basic
+    // --------------------------------------------------------
+
+    static fn size(list) {
+        return list.length()
+    }
+
+    static fn isEmpty(list) {
+        return list.length() == 0
+    }
+
+    static fn contains(list, value) {
+
+        loop (list.length(), i) {
+
+            if (list[i] == value) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    static fn indexOf(list, value) {
+
+        loop (list.length(), i) {
+
+            if (list[i] == value) {
+                return i
+            }
+        }
+
+        return -1
+    }
+
+    static fn first(list) {
+
+        if (list.length() == 0) {
+            throw 'Collection is empty'
+        }
+
+        return list[0]
+    }
+
+    static fn last(list) {
+
+        if (list.length() == 0) {
+            throw 'Collection is empty'
+        }
+
+        return list[list.length() - 1]
+    }
+
+
+    // --------------------------------------------------------
+    // Add / Remove
+    // --------------------------------------------------------
+
+    static fn add(list, value) {
+        list.add(value)
+        return list
+    }
+
+    static fn remove(list, value) {
+
+        auto index = Collections.indexOf(
+            list,
+            value
+        )
+
+        if (index == -1) {
+            return false
+        }
+
+        auto result = []
+
+        loop (list.length(), i) {
+
+            if (i != index) {
+                result.add(list[i])
+            }
+        }
+
+        // Replace original contents
+        while (list.length() > 0) {
+            list.set(
+                list.length() - 1,
+                null
+            )
+        }
+
+        loop (result.length(), i) {
+            list.add(result[i])
+        }
+
+        return true
+    }
+
+
+    // --------------------------------------------------------
+    // Reverse
+    // --------------------------------------------------------
+
+    static fn reverse(list) {
+
+        auto result = []
+
+        auto i = list.length() - 1
+
+        while (i >= 0) {
+
+            result.add(list[i])
+
+            i = i - 1
+        }
+
+        return result
+    }
+
+
+    // --------------------------------------------------------
+    // Copy
+    // --------------------------------------------------------
+
+    static fn copy(list) {
+
+        auto result = []
+
+        loop (list.length(), i) {
+            result.add(list[i])
+        }
+
+        return result
+    }
+
+
+
+
+
+    // --------------------------------------------------------
+    // Join
+    // --------------------------------------------------------
+
+    static fn join(list, separator) {
+
+        auto result = ''
+
+        loop (list.length(), i) {
+
+            if (i > 0) {
+                result = result + separator
+            }
+
+            result = result + list[i].toString()
+        }
+
+        return result
+    }
+
+
+    // --------------------------------------------------------
+    // Numeric operations
+    // --------------------------------------------------------
+
+    static fn sum(list) {
+
+        auto result = 0
+
+        loop (list.length(), i) {
+            result = result + list[i]
+        }
+
+        return result
+    }
+
+    static fn product(list) {
+
+        auto result = 1
+
+        loop (list.length(), i) {
+            result = result * list[i]
+        }
+
+        return result
+    }
+
+    static fn min(list) {
+
+        if (list.length() == 0) {
+            throw 'Collection is empty'
+        }
+
+        auto result = list[0]
+
+        loop (list.length(), i) {
+
+            if (list[i] < result) {
+                result = list[i]
+            }
+        }
+
+        return result
+    }
+
+    static fn max(list) {
+
+        if (list.length() == 0) {
+            throw 'Collection is empty'
+        }
+
+        auto result = list[0]
+
+        loop (list.length(), i) {
+
+            if (list[i] > result) {
+                result = list[i]
+            }
+        }
+
+        return result
+    }
+
+    static fn average(list) {
+
+        if (list.length() == 0) {
+            throw 'Collection is empty'
+        }
+
+        return Collections.sum(list) /
+            list.length()
+    }
+
+
+    // --------------------------------------------------------
+    // Sorting
+    // --------------------------------------------------------
+
+    static fn sort(list) {
+
+        auto result = Collections.copy(list)
+
+        // Insertion sort
+        loop (result.length(), i) {
+
+            auto current = result[i]
+            auto j = i - 1
+
+            while (j >= 0 && result[j] > current) {
+
+                result.set(
+                    j + 1,
+                    result[j]
+                )
+
+                j = j - 1
+            }
+
+            result.set(
+                j + 1,
+                current
+            )
+        }
+
+        return result
+    }
+
+    static fn sortDescending(list) {
+
+        auto result = Collections.copy(list)
+
+        loop (result.length(), i) {
+
+            auto current = result[i]
+            auto j = i - 1
+
+            while (j >= 0 && result[j] < current) {
+
+                result.set(
+                    j + 1,
+                    result[j]
+                )
+
+                j = j - 1
+            }
+
+            result.set(
+                j + 1,
+                current
+            )
+        }
+
+        return result
+    }
+
+
+    // --------------------------------------------------------
+    // Chunk
+    // --------------------------------------------------------
+
+    static fn chunk(list, size) {
+
+        if (size <= 0) {
+            throw 'Chunk size must be greater than zero'
+        }
+
+        auto result = []
+        auto current = []
+
+        loop (list.length(), i) {
+
+            current.add(list[i])
+
+            if (current.length() == size) {
+                result.add(current)
+                current = []
+            }
+        }
+
+        if (current.length() > 0) {
+            result.add(current)
+        }
+
+        return result
+    }
+
+
+    // --------------------------------------------------------
+    // Range
+    // --------------------------------------------------------
+
+    static fn range(start, end) {
+
+        auto result = []
+
+        auto step = 1
+
+        if (start > end) {
+            step = -1
+        }
+
+        auto value = start
+
+        while (
+            (step > 0 && value <= end) ||
+            (step < 0 && value >= end)
+        ) {
+
+            result.add(value)
+
+            value = value + step
+        }
+
+        return result
+    }
+
+
+    // --------------------------------------------------------
+    // Unique
+    // --------------------------------------------------------
+
+    static fn unique(list) {
+
+        auto result = []
+
+        loop (list.length(), i) {
+
+            if (!Collections.contains(
+                result,
+                list[i]
+            )) {
+                result.add(list[i])
+            }
+        }
+
+        return result
+    }
+
+
+    // --------------------------------------------------------
+    // Zip
+    // --------------------------------------------------------
+
+    static fn zip(first, second) {
+
+        auto result = []
+
+        auto size = first.length()
+
+        if (second.length() < size) {
+            size = second.length()
+        }
+
+        loop (size, i) {
+
+            auto pair = []
+
+            pair.add(first[i])
+            pair.add(second[i])
+
+            result.add(pair)
+        }
+
+        return result
+    }
+
+
+    // --------------------------------------------------------
+    // Slice
+    // --------------------------------------------------------
+
+    static fn slice(list, start, end) {
+
+        auto result = []
+
+        auto actualEnd = end
+
+        if (actualEnd > list.length()) {
+            actualEnd = list.length()
+        }
+
+        auto i = start
+
+        while (i < actualEnd) {
+
+            result.add(list[i])
+
+            i = i + 1
+        }
+
+        return result
+    }
+}
+
+
+// ============================================================
+// STACK
+// ============================================================
+
+class Stack {
+
+    List items = []
+
+    fn init() {
+        this.items = []
+    }
+
+    fn push(value) {
+        this.items.add(value)
+    }
+
+    fn pop() {
+
+        auto size = this.items.length()
+
+        if (size == 0) {
+            throw 'Stack is empty'
+        }
+
+        auto value = this.items[size - 1]
+
+        // Remove last item by rebuilding list
+        auto result = []
+
+        loop (size - 1, i) {
+            result.add(this.items[i])
+        }
+
+        this.items = result
+
+        return value
+    }
+
+    fn peek() {
+
+        if (this.items.length() == 0) {
+            throw 'Stack is empty'
+        }
+
+        return this.items[
+            this.items.length() - 1
+        ]
+    }
+
+    fn isEmpty() {
+        return this.items.length() == 0
+    }
+
+    fn size() {
+        return this.items.length()
+    }
+
+    fn clear() {
+        this.items = []
+    }
+
+    fn values() {
+        return Collections.copy(
+            this.items
+        )
+    }
+}
+
+
+// ============================================================
+// QUEUE
+// ============================================================
+
+class Queue {
+
+    List items = []
+
+    fn init() {
+        this.items = []
+    }
+
+    fn enqueue(value) {
+        this.items.add(value)
+    }
+
+    fn dequeue() {
+
+        if (this.items.length() == 0) {
+            throw 'Queue is empty'
+        }
+
+        auto value = this.items[0]
+        auto result = []
+
+        loop (this.items.length() - 1, i) {
+            result.add(
+                this.items[i + 1]
+            )
+        }
+
+        this.items = result
+
+        return value
+    }
+
+    fn peek() {
+
+        if (this.items.length() == 0) {
+            throw 'Queue is empty'
+        }
+
+        return this.items[0]
+    }
+
+    fn isEmpty() {
+        return this.items.length() == 0
+    }
+
+    fn size() {
+        return this.items.length()
+    }
+
+    fn clear() {
+        this.items = []
+    }
+
+    fn values() {
+        return Collections.copy(
+            this.items
+        )
+    }
+}
+
+
+// ============================================================
+// SET
+// ============================================================
+
+class Set {
+
+    List items = []
+
+    fn init() {
+        this.items = []
+    }
+
+    fn add(value) {
+
+        if (!this.contains(value)) {
+            this.items.add(value)
+        }
+    }
+
+    fn remove(value) {
+
+        auto index = this.indexOf(value)
+
+        if (index == -1) {
+            return false
+        }
+
+        auto result = []
+
+        loop (this.items.length(), i) {
+
+            if (i != index) {
+                result.add(
+                    this.items[i]
+                )
+            }
+        }
+
+        this.items = result
+
+        return true
+    }
+
+    fn contains(value) {
+        return Collections.contains(
+            this.items,
+            value
+        )
+    }
+
+    fn indexOf(value) {
+        return Collections.indexOf(
+            this.items,
+            value
+        )
+    }
+
+    fn size() {
+        return this.items.length()
+    }
+
+    fn isEmpty() {
+        return this.items.length() == 0
+    }
+
+    fn clear() {
+        this.items = []
+    }
+
+    fn values() {
+        return Collections.copy(
+            this.items
+        )
+    }
+
+    // A ∪ B
+    fn union(other) {
+
+        auto result = new Set()
+
+        loop (this.items.length(), i) {
+            result.add(this.items[i])
+        }
+
+        loop (other.items.length(), i) {
+            result.add(other.items[i])
+        }
+
+        return result
+    }
+
+    // A ∩ B
+    fn intersection(other) {
+
+        auto result = new Set()
+
+        loop (this.items.length(), i) {
+
+            if (other.contains(
+                this.items[i]
+            )) {
+                result.add(
+                    this.items[i]
+                )
+            }
+        }
+
+        return result
+    }
+
+    // A - B
+    fn difference(other) {
+
+        auto result = new Set()
+
+        loop (this.items.length(), i) {
+
+            if (!other.contains(
+                this.items[i]
+            )) {
+                result.add(
+                    this.items[i]
+                )
+            }
+        }
+
+        return result
+    }
+
+    fn string() {
+        return Collections.join(
+            this.items,
+            ', '
+        )
+    }
+}
+
+
+// ============================================================
+// LINKED LIST
+// ============================================================
+
+class LinkedListNode {
+
+    auto value = null
+    auto next = null
+
+    fn init(value) {
+        this.value = value
+        this.next = null
+    }
+}
+
+
+class LinkedList {
+
+    auto head = null
+    auto tail = null
+    Number count = 0
+
+    fn init() {
+        this.head = null
+        this.tail = null
+        this.count = 0
+    }
+
+    fn add(value) {
+
+        auto node = new LinkedListNode(
+            value
+        )
+
+        if (this.head == null) {
+
+            this.head = node
+            this.tail = node
+
+        } else {
+
+            this.tail.next = node
+            this.tail = node
+        }
+
+        this.count = this.count + 1
+    }
+
+    fn addFirst(value) {
+
+        auto node = new LinkedListNode(
+            value
+        )
+
+        node.next = this.head
+        this.head = node
+
+        if (this.tail == null) {
+            this.tail = node
+        }
+
+        this.count = this.count + 1
+    }
+
+    fn removeFirst() {
+
+        if (this.head == null) {
+            throw 'LinkedList is empty'
+        }
+
+        auto value = this.head.value
+
+        this.head = this.head.next
+
+        this.count = this.count - 1
+
+        if (this.count == 0) {
+            this.tail = null
+        }
+
+        return value
+    }
+
+    fn first() {
+
+        if (this.head == null) {
+            throw 'LinkedList is empty'
+        }
+
+        return this.head.value
+    }
+
+    fn last() {
+
+        if (this.tail == null) {
+            throw 'LinkedList is empty'
+        }
+
+        return this.tail.value
+    }
+
+    fn size() {
+        return this.count
+    }
+
+    fn isEmpty() {
+        return this.count == 0
+    }
+
+    fn clear() {
+        this.head = null
+        this.tail = null
+        this.count = 0
+    }
+
+    fn values() {
+
+        auto result = []
+        auto current = this.head
+
+        while (current != null) {
+
+            result.add(
+                current.value
+            )
+
+            current = current.next
+        }
+
+        return result
+    }
+}

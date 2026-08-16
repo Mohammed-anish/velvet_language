@@ -74,8 +74,9 @@ mixin BineryOperations on CoreParser {
       final right = unary();
       return UnaryExpr(op.value, right);
     }
-    return primary();
+    return call();
   }
 
+  Node call();
   Node primary();
 }

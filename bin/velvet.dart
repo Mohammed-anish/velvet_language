@@ -9,7 +9,7 @@ bool isJsBuild = identical(1, 1.0);
 
 void main(List<String> args) {
   Tokenizer tokenizer = Tokenizer(read(args))..tokenize();
-  // print(tokenizer.tokens);
+  // print(tokenizer.tokens.map((t) => t.type.name).join(', '));
 
   Programe parse = Parser(tokenizer).parse();
   // print(parse);

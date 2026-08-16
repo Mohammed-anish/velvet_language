@@ -1,0 +1,4 @@
+class JSON {
+    outer fn stringify(map)
+    outer fn parse(string)
+}

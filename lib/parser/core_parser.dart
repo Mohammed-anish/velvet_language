@@ -35,7 +35,7 @@ abstract class CoreParser {
       }
     }
     throw Exception(exeption ??
-        'Unexpected token in expression: ${current().type}, expected: $type');
+        'Unexpected token in expression: ${current().type} (value: "${current().value}") at line ${current().line}:${current().column}, expected: $type');
   }
 
   void eatNewLines() {

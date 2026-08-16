@@ -1,0 +1,21 @@
+class File {
+    String path = ""
+    
+    fn init(path) {
+        this.path = path
+    }
+
+    outer fn create()
+    outer fn delete()
+    outer fn exists()
+    outer fn readAsString()
+    outer fn writeAsString(content)
+    outer fn appendAsString(content)
+}
+
+class Http {
+    outer fn get(url, headers)
+    outer fn post(url, body, headers)
+    outer fn put(url, body, headers)
+    outer fn delete(url, headers)
+}

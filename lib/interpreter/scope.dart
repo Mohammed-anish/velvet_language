@@ -22,6 +22,16 @@ mixin Scopes {
   }
 
   void setVar(String name, dynamic value) {
+    for (int i = scopes.length - 1; i >= 0; i--) {
+      if (scopes[i].containsKey(name)) {
+        scopes[i][name] = value;
+        return;
+      }
+    }
+    scopes.last[name] = value;
+  }
+
+  void defineVar(String name, dynamic value) {
     scopes.last[name] = value;
   }
 

@@ -2,3 +2,39 @@ class Object{
     outer fn str string()
     outer fn num hash()
 }
+
+class List {
+    outer fn add(item)
+    outer fn get(index)
+    outer fn set(index, value)
+    outer fn length()
+}
+
+class Map {
+    outer fn put(key, value)
+    outer fn get(key)
+}
+
+class String {
+    outer fn toUpperCase()
+    outer fn toLowerCase()
+    outer fn length()
+    outer fn trim()
+    outer fn split(pattern)
+    outer fn replace(from, to)
+    outer fn contains(substring)
+    outer fn startsWith(prefix)
+    outer fn endsWith(suffix)
+    outer fn substring(start, end)
+    outer fn isEmpty()
+}
+
+class Number {
+    outer fn toString()
+    outer fn toInt()
+    outer fn toDouble()
+    outer fn round()
+    outer fn floor()
+    outer fn ceil()
+    outer fn abs()
+}

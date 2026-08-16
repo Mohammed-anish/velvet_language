@@ -1,0 +1,135 @@
+import "math.velv"
+
+// Native binding to dart:math Random
+class NativeRandom {
+    static outer fn create()
+    static outer fn createWithSeed(seed)
+    static outer fn nextDouble(nativeRnd)
+    static outer fn nextInt(nativeRnd, max)
+    static outer fn nextBool(nativeRnd)
+}
+
+//
+// random.velv
+// Velvet Random Number Library
+//
+// Wraps dart:math's high-quality Random generator.
+//
+
+class Random {
+
+    auto _native = false
+
+    fn init() {
+        this._native = NativeRandom.create()
+    }
+
+    fn seed(value) {
+        this._native = NativeRandom.createWithSeed(value)
+    }
+
+    fn next() {
+        return NativeRandom.nextDouble(this._native)
+    }
+
+    fn boolean() {
+        return NativeRandom.nextBool(this._native)
+    }
+
+    fn double(minimum, maximum) {
+        if (maximum < minimum) {
+            throw 'Maximum cannot be less than minimum'
+        }
+
+        if (maximum == minimum) {
+            return minimum
+        }
+
+        return minimum + this.next() * (maximum - minimum)
+    }
+
+    fn int(minimum, maximum) {
+        if (maximum < minimum) {
+            throw 'Maximum cannot be less than minimum'
+        }
+
+        if (maximum == minimum) {
+            return minimum.toInt()
+        }
+
+        auto range = maximum.toInt() - minimum.toInt() + 1
+        return minimum.toInt() + NativeRandom.nextInt(this._native, range)
+    }
+
+    fn choice(list) {
+        if (list.length() == 0) {
+            throw 'Cannot choose from an empty list'
+        }
+        return list[NativeRandom.nextInt(this._native, list.length())]
+    }
+
+    fn index(length) {
+        if (length <= 0) {
+            throw 'Length must be greater than zero'
+        }
+        return NativeRandom.nextInt(this._native, length)
+    }
+
+    fn shuffle(list) {
+        auto result = []
+        loop (list.length(), i) {
+            result.add(list[i])
+        }
+
+        // Fisher-Yates shuffle
+        auto i = result.length() - 1
+        while (i > 0) {
+            auto j = NativeRandom.nextInt(this._native, i + 1)
+            auto temp = result[i]
+            result.set(i, result[j])
+            result.set(j, temp)
+            i = i - 1
+        }
+        return result
+    }
+
+    fn take(list) {
+        if (list.length() == 0) {
+            throw 'Cannot take from an empty list'
+        }
+        return list[NativeRandom.nextInt(this._native, list.length())]
+    }
+
+    fn sign() {
+        if (this.boolean()) {
+            return 1
+        }
+        return -1
+    }
+
+    fn chance(percent) {
+        if (percent <= 0) {
+            return false
+        }
+        if (percent >= 100) {
+            return true
+        }
+        return this.next() < (percent / 100)
+    }
+
+    fn hexColor() {
+        auto red = this.int(0, 255)
+        auto green = this.int(0, 255)
+        auto blue = this.int(0, 255)
+
+        return '#' + Random.hex(red) + Random.hex(green) + Random.hex(blue)
+    }
+
+    static fn hex(value) {
+        auto digits = '0123456789ABCDEF'
+        auto high = Math.floor(value / 16)
+        auto low = value - high * 16
+
+        return digits.substring(high, high + 1) + digits.substring(low, low + 1)
+    }
+}

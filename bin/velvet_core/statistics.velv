@@ -1,0 +1,738 @@
+//
+// statistics.velv
+// Velvet Statistics Library
+//
+
+import "bin/velvet_core/math.velv"
+
+
+class Statistics {
+
+    // ========================================================
+    // BASIC
+    // ========================================================
+
+    static fn count(values) {
+        return values.length()
+    }
+
+    static fn sum(values) {
+
+        auto total = 0
+
+        loop (values.length(), i) {
+            total = total + values[i]
+        }
+
+        return total
+    }
+
+    static fn min(values) {
+
+        if (values.length() == 0) {
+            throw 'Cannot calculate minimum of empty collection'
+        }
+
+        auto result = values[0]
+
+        loop (values.length(), i) {
+
+            if (values[i] < result) {
+                result = values[i]
+            }
+        }
+
+        return result
+    }
+
+    static fn max(values) {
+
+        if (values.length() == 0) {
+            throw 'Cannot calculate maximum of empty collection'
+        }
+
+        auto result = values[0]
+
+        loop (values.length(), i) {
+
+            if (values[i] > result) {
+                result = values[i]
+            }
+        }
+
+        return result
+    }
+
+    static fn range(values) {
+        return Statistics.max(values) -
+            Statistics.min(values)
+    }
+
+
+    // ========================================================
+    // MEAN
+    // ========================================================
+
+    static fn mean(values) {
+
+        if (values.length() == 0) {
+            throw 'Cannot calculate mean of empty collection'
+        }
+
+        return Statistics.sum(values) /
+            values.length()
+    }
+
+
+    // ========================================================
+    // MEDIAN
+    // ========================================================
+
+    static fn median(values) {
+
+        if (values.length() == 0) {
+            throw 'Cannot calculate median of empty collection'
+        }
+
+        auto sorted = Statistics.sort(values)
+        auto size = sorted.length()
+        auto middle = Math.floor(size / 2)
+
+        // Avoid using % because Velvet does not
+        // currently define the modulo operator.
+
+        auto half = Math.floor(size / 2)
+
+        if (half * 2 == size) {
+
+            return (
+                sorted[middle - 1] +
+                sorted[middle]
+            ) / 2
+        }
+
+        return sorted[middle]
+    }
+
+
+    // ========================================================
+    // MODE
+    // ========================================================
+
+    static fn mode(values) {
+
+        if (values.length() == 0) {
+            throw 'Cannot calculate mode of empty collection'
+        }
+
+        auto bestValue = values[0]
+        auto bestCount = 0
+
+        loop (values.length(), i) {
+
+            auto current = values[i]
+            auto count = 0
+
+            loop (values.length(), j) {
+
+                if (values[j] == current) {
+                    count = count + 1
+                }
+            }
+
+            if (count > bestCount) {
+                bestCount = count
+                bestValue = current
+            }
+        }
+
+        return bestValue
+    }
+
+
+    // ========================================================
+    // VARIANCE
+    // ========================================================
+
+    // Population variance:
+    //
+    // σ² = Σ(x - μ)² / N
+
+    static fn variance(values) {
+
+        if (values.length() == 0) {
+            throw 'Cannot calculate variance of empty collection'
+        }
+
+        auto average = Statistics.mean(values)
+        auto total = 0
+
+        loop (values.length(), i) {
+
+            auto difference =
+                values[i] - average
+
+            total =
+                total +
+                difference * difference
+        }
+
+        return total / values.length()
+    }
+
+
+    // ========================================================
+    // SAMPLE VARIANCE
+    // ========================================================
+
+    // Sample variance:
+    //
+    // s² = Σ(x - x̄)² / (N - 1)
+
+    static fn sampleVariance(values) {
+
+        if (values.length() < 2) {
+            throw 'Sample variance requires at least 2 values'
+        }
+
+        auto average = Statistics.mean(values)
+        auto total = 0
+
+        loop (values.length(), i) {
+
+            auto difference =
+                values[i] - average
+
+            total =
+                total +
+                difference * difference
+        }
+
+        return total / (
+            values.length() - 1
+        )
+    }
+
+
+    // ========================================================
+    // STANDARD DEVIATION
+    // ========================================================
+
+    static fn standardDeviation(values) {
+
+        return Math.sqrt(
+            Statistics.variance(values)
+        )
+    }
+
+    static fn sampleStandardDeviation(values) {
+
+        return Math.sqrt(
+            Statistics.sampleVariance(values)
+        )
+    }
+
+
+    // ========================================================
+    // PERCENTILES
+    // ========================================================
+
+    static fn percentile(values, percent) {
+
+        if (values.length() == 0) {
+            throw 'Cannot calculate percentile of empty collection'
+        }
+
+        if (percent < 0 || percent > 100) {
+            throw 'Percentile must be between 0 and 100'
+        }
+
+        auto sorted = Statistics.sort(values)
+
+        if (sorted.length() == 1) {
+            return sorted[0]
+        }
+
+        auto position =
+            (percent / 100) *
+            (sorted.length() - 1)
+
+        auto lower =
+            Math.floor(position)
+
+        auto upper =
+            lower + 1
+
+        if (upper >= sorted.length()) {
+            return sorted[lower]
+        }
+
+        auto fraction =
+            position - lower
+
+        return sorted[lower] +
+            (
+                sorted[upper] -
+                sorted[lower]
+            ) * fraction
+    }
+
+
+    static fn quartile1(values) {
+
+        return Statistics.percentile(
+            values,
+            25
+        )
+    }
+
+
+    static fn quartile2(values) {
+
+        return Statistics.percentile(
+            values,
+            50
+        )
+    }
+
+
+    static fn quartile3(values) {
+
+        return Statistics.percentile(
+            values,
+            75
+        )
+    }
+
+
+    static fn interquartileRange(values) {
+
+        return Statistics.quartile3(values) -
+            Statistics.quartile1(values)
+    }
+
+
+    // ========================================================
+    // Z-SCORE
+    // ========================================================
+
+    static fn zScore(value, values) {
+
+        auto average =
+            Statistics.mean(values)
+
+        auto deviation =
+            Statistics.standardDeviation(values)
+
+        if (deviation == 0) {
+            throw 'Standard deviation cannot be zero'
+        }
+
+        return (
+            value - average
+        ) / deviation
+    }
+
+
+    // ========================================================
+    // COVARIANCE
+    // ========================================================
+
+    static fn covariance(x, y) {
+
+        if (x.length() != y.length()) {
+            throw 'Collections must have the same length'
+        }
+
+        if (x.length() == 0) {
+            throw 'Collections cannot be empty'
+        }
+
+        auto meanX =
+            Statistics.mean(x)
+
+        auto meanY =
+            Statistics.mean(y)
+
+        auto total = 0
+
+        loop (x.length(), i) {
+
+            auto dx =
+                x[i] - meanX
+
+            auto dy =
+                y[i] - meanY
+
+            total =
+                total +
+                dx * dy
+        }
+
+        return total / x.length()
+    }
+
+
+    // ========================================================
+    // SAMPLE COVARIANCE
+    // ========================================================
+
+    static fn sampleCovariance(x, y) {
+
+        if (x.length() != y.length()) {
+            throw 'Collections must have the same length'
+        }
+
+        if (x.length() < 2) {
+            throw 'At least 2 values are required'
+        }
+
+        auto meanX =
+            Statistics.mean(x)
+
+        auto meanY =
+            Statistics.mean(y)
+
+        auto total = 0
+
+        loop (x.length(), i) {
+
+            auto dx =
+                x[i] - meanX
+
+            auto dy =
+                y[i] - meanY
+
+            total =
+                total +
+                dx * dy
+        }
+
+        return total / (
+            x.length() - 1
+        )
+    }
+
+
+    // ========================================================
+    // PEARSON CORRELATION
+    // ========================================================
+
+    static fn correlation(x, y) {
+
+        if (x.length() != y.length()) {
+            throw 'Collections must have the same length'
+        }
+
+        if (x.length() == 0) {
+            throw 'Collections cannot be empty'
+        }
+
+        auto meanX =
+            Statistics.mean(x)
+
+        auto meanY =
+            Statistics.mean(y)
+
+        auto numerator = 0
+        auto sumX = 0
+        auto sumY = 0
+
+        loop (x.length(), i) {
+
+            auto dx =
+                x[i] - meanX
+
+            auto dy =
+                y[i] - meanY
+
+            numerator =
+                numerator +
+                dx * dy
+
+            sumX =
+                sumX +
+                dx * dx
+
+            sumY =
+                sumY +
+                dy * dy
+        }
+
+        auto denominator =
+            Math.sqrt(
+                sumX * sumY
+            )
+
+        if (denominator == 0) {
+            throw 'Correlation undefined when variance is zero'
+        }
+
+        return numerator / denominator
+    }
+
+
+    // ========================================================
+    // MEAN ABSOLUTE DEVIATION
+    // ========================================================
+
+    static fn meanAbsoluteDeviation(values) {
+
+        if (values.length() == 0) {
+            throw 'Cannot calculate deviation of empty collection'
+        }
+
+        auto average =
+            Statistics.mean(values)
+
+        auto total = 0
+
+        loop (values.length(), i) {
+
+            total =
+                total +
+                Math.abs(
+                    values[i] - average
+                )
+        }
+
+        return total / values.length()
+    }
+
+
+    // ========================================================
+    // ROOT MEAN SQUARE
+    // ========================================================
+
+    static fn rootMeanSquare(values) {
+
+        if (values.length() == 0) {
+            throw 'Cannot calculate RMS of empty collection'
+        }
+
+        auto total = 0
+
+        loop (values.length(), i) {
+
+            total =
+                total +
+                values[i] * values[i]
+        }
+
+        return Math.sqrt(
+            total / values.length()
+        )
+    }
+
+
+    // ========================================================
+    // WEIGHTED MEAN
+    // ========================================================
+
+    static fn weightedMean(values, weights) {
+
+        if (values.length() != weights.length()) {
+            throw 'Values and weights must have the same length'
+        }
+
+        if (values.length() == 0) {
+            throw 'Collections cannot be empty'
+        }
+
+        auto total = 0
+        auto weightTotal = 0
+
+        loop (values.length(), i) {
+
+            total =
+                total +
+                values[i] * weights[i]
+
+            weightTotal =
+                weightTotal +
+                weights[i]
+        }
+
+        if (weightTotal == 0) {
+            throw 'Sum of weights cannot be zero'
+        }
+
+        return total / weightTotal
+    }
+
+
+    // ========================================================
+    // SORT
+    // ========================================================
+
+    static fn sort(values) {
+
+        auto result = []
+
+        loop (values.length(), i) {
+            result.add(values[i])
+        }
+
+        // Insertion sort
+
+        loop (result.length(), i) {
+
+            auto current =
+                result[i]
+
+            auto j = i - 1
+
+            while (
+                j >= 0 &&
+                result[j] > current
+            ) {
+
+                result.set(
+                    j + 1,
+                    result[j]
+                )
+
+                j = j - 1
+            }
+
+            result.set(
+                j + 1,
+                current
+            )
+        }
+
+        return result
+    }
+
+
+    // ========================================================
+    // FREQUENCY
+    // ========================================================
+
+    static fn frequency(values, target) {
+
+        auto count = 0
+
+        loop (values.length(), i) {
+
+            if (values[i] == target) {
+                count = count + 1
+            }
+        }
+
+        return count
+    }
+
+
+    // ========================================================
+    // NORMALIZE
+    // ========================================================
+
+    static fn normalize(value, minimum, maximum) {
+
+        if (maximum == minimum) {
+            throw 'Maximum and minimum cannot be equal'
+        }
+
+        return (
+            value - minimum
+        ) / (
+            maximum - minimum
+        )
+    }
+
+
+    // ========================================================
+    // SKEWNESS
+    // ========================================================
+
+    static fn skewness(values) {
+
+        if (values.length() < 2) {
+            throw 'At least 2 values are required'
+        }
+
+        auto average =
+            Statistics.mean(values)
+
+        auto deviation =
+            Statistics.standardDeviation(values)
+
+        if (deviation == 0) {
+            throw 'Skewness undefined when standard deviation is zero'
+        }
+
+        auto total = 0
+
+        loop (values.length(), i) {
+
+            auto normalized =
+                (
+                    values[i] - average
+                ) / deviation
+
+            total =
+                total +
+                normalized *
+                normalized *
+                normalized
+        }
+
+        return total / values.length()
+    }
+
+
+    // ========================================================
+    // SUMMARY
+    // ========================================================
+
+    static fn summary(values) {
+
+        if (values.length() == 0) {
+            throw 'Cannot summarize empty collection'
+        }
+
+        Map result = {}
+
+        result['count'] =
+            Statistics.count(values)
+
+        result['sum'] =
+            Statistics.sum(values)
+
+        result['mean'] =
+            Statistics.mean(values)
+
+        result['median'] =
+            Statistics.median(values)
+
+        result['mode'] =
+            Statistics.mode(values)
+
+        result['min'] =
+            Statistics.min(values)
+
+        result['max'] =
+            Statistics.max(values)
+
+        result['range'] =
+            Statistics.range(values)
+
+        result['variance'] =
+            Statistics.variance(values)
+
+        result['standardDeviation'] =
+            Statistics.standardDeviation(values)
+
+        result['quartile1'] =
+            Statistics.quartile1(values)
+
+        result['quartile3'] =
+            Statistics.quartile3(values)
+
+        result['interquartileRange'] =
+            Statistics.interquartileRange(values)
+
+        return result
+    }
+}

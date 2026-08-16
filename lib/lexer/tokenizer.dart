@@ -26,13 +26,15 @@ class Tokenizer {
     tokens.add(Token(type, value ?? current, line, column));
   }
 
+  int parenDepth = 0;
+
   void tokenize() {
     while (!isAtEnd) {
       final start = index;
       final char = current;
 
       if (_isWhitespace(char)) {
-        if (char == '\n') {
+        if (char == '\n' && parenDepth == 0) {
           addToken(TType.newLine, '\\n');
         }
         advance();
@@ -42,12 +44,19 @@ class Tokenizer {
         _number();
       } else if (char == '"' || char == "'") {
         _string(char);
+      } else if (char == '}' && interpolationDepth > 0) {
+        addToken(TType.rParen, ')');
+        addToken(TType.plus, '+');
+        interpolationDepth--;
+        _string(quoteStack.removeLast(), isResume: true);
       } else {
         switch (char) {
           case '(':
+            parenDepth++;
             addToken(TType.lParen);
             break;
           case ')':
+            if (parenDepth > 0) parenDepth--;
             addToken(TType.rParen);
             break;
           case '{':
@@ -135,6 +144,91 @@ class Tokenizer {
     }
 
     addToken(TType.eof, '');
+    _stripContinuationNewlines();
+  }
+
+  /// Removes newline tokens when context indicates expression continuation.
+  /// A newline is removed if:
+  ///   - The previous meaningful token is a trailing operator/delimiter
+  ///     (e.g., `+`, `*`, `/`, `=`, `,`, `(`, `[`, `&&`, `||`)
+  ///   - The next meaningful token is a leading binary operator
+  ///     (e.g., `+`, `*`, `/`, `&&`, `||` — but NOT `-` to avoid unary ambiguity)
+  void _stripContinuationNewlines() {
+    // Token types that, when trailing a line, mean the expression continues
+    const trailingContinuation = {
+      TType.plus,
+      TType.minus,
+      TType.star,
+      TType.slash,
+      TType.percent,
+      TType.assign,
+      TType.comma,
+      TType.lParen,
+      TType.lBracket,
+      TType.and_,
+      TType.or_,
+      TType.equal,
+      TType.doubleEqual,
+      TType.notEqual,
+      TType.greater,
+      TType.greaterEqual,
+      TType.less,
+      TType.lessEqual,
+      TType.dot,
+    };
+
+    // Token types that, when leading the next line, mean it's a continuation
+    // NOTE: minus is excluded to avoid ambiguity with unary negation
+    const leadingContinuation = {
+      TType.plus,
+      TType.star,
+      TType.slash,
+      TType.percent,
+      TType.and_,
+      TType.or_,
+      TType.dot,
+    };
+
+    final filtered = <Token>[];
+    for (var i = 0; i < tokens.length; i++) {
+      if (tokens[i].type != TType.newLine) {
+        filtered.add(tokens[i]);
+        continue;
+      }
+
+      // Find previous meaningful token (skip other newlines)
+      Token? prev;
+      for (var j = filtered.length - 1; j >= 0; j--) {
+        if (filtered[j].type != TType.newLine) {
+          prev = filtered[j];
+          break;
+        }
+      }
+
+      // Find next meaningful token (skip other newlines)
+      Token? next;
+      for (var k = i + 1; k < tokens.length; k++) {
+        if (tokens[k].type != TType.newLine) {
+          next = tokens[k];
+          break;
+        }
+      }
+
+      // Remove newline if previous token is a trailing continuation
+      if (prev != null && trailingContinuation.contains(prev.type)) {
+        continue; // skip this newline
+      }
+
+      // Remove newline if next token is a leading continuation
+      if (next != null && leadingContinuation.contains(next.type)) {
+        continue; // skip this newline
+      }
+
+      filtered.add(tokens[i]);
+    }
+
+    tokens.clear();
+    tokens.addAll(filtered);
   }
 
   void _identifierOrKeyword() {
@@ -170,10 +264,15 @@ class Tokenizer {
       'loop': TType.loop,
       'static': TType.static,
       'new': TType.new_,
-      'dot': TType.dot,
+
       'this': TType.this_,
       'outer': TType.outer,
-      'derives': TType.derives
+      'derives': TType.derives,
+      'try': TType.try_,
+      'catch': TType.catch_,
+      'throw': TType.throw_,
+      'async': TType.asyncKw,
+      'await': TType.awaitKw,
     };
 
     final type = keywords[text] ?? TType.identifier;
@@ -197,15 +296,42 @@ class Tokenizer {
     addToken(TType.number, value);
   }
 
-  void _string(String quote) {
-    advance(); // Skip opening quote
+  int interpolationDepth = 0;
+  List<String> quoteStack = [];
+
+  void _string(String quote, {bool isResume = false}) {
+    advance(); // Skip opening quote or }
+    
     final start = index;
+    bool hasInterpolation = false;
+
     while (!isAtEnd && current != quote) {
+      if (current == r'$' && _peek() == '{') {
+         hasInterpolation = true;
+         break;
+      }
       advance();
     }
+
     final value = source.substring(start, index);
+    
+    if (hasInterpolation) {
+       if (!isResume) addToken(TType.lParen, '(');
+       addToken(TType.string, value);
+       addToken(TType.plus, '+');
+       addToken(TType.lParen, '(');
+       advance(); // skip $
+       advance(); // skip {
+       interpolationDepth++;
+       quoteStack.add(quote);
+       return;
+    }
+
     advance(); // Skip closing quote
     addToken(TType.string, value);
+    if (isResume || interpolationDepth > 0 && isResume) {
+       addToken(TType.rParen, ')');
+    }
   }
 
   void _comment() {

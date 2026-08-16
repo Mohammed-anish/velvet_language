@@ -1,0 +1,37 @@
+class Process {
+    static outer fn run(command, args)
+    static outer fn args()
+    static outer fn cwd()
+    static outer fn sleep(milliseconds)
+    static outer fn exit(code)
+}
+
+class Platform {
+    static outer fn env(key)
+    static outer fn os()
+}
+
+class Path {
+    static outer fn join(part1, part2)
+    static outer fn basename(path)
+    static outer fn dirname(path)
+    static outer fn extension(path)
+}
+
+class DateTime {
+    static outer fn now()
+    
+    outer fn year()
+    outer fn month()
+    outer fn day()
+    outer fn hour()
+    outer fn minute()
+    outer fn second()
+    outer fn millisecondsSinceEpoch()
+    outer fn toIso8601String()
+}
+
+class Timer {
+    static outer fn periodic(milliseconds, functionName)
+    static outer fn delayed(milliseconds, functionName)
+}

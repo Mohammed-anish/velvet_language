@@ -1,0 +1,715 @@
+// physics.velv
+//
+// Velvet Physics Core
+// Pure Velvet implementation - no native bindings required.
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+
+Number PI = 3.141592653589793
+Number TWO_PI = 6.283185307179586
+
+// Standard gravitational acceleration (m/s^2)
+Number GRAVITY = 9.80665
+
+// Universal gravitational constant (N m^2 / kg^2)
+Number GRAVITATIONAL_CONSTANT = 0.0000000000667430
+
+
+// ============================================================
+// MATH
+// ============================================================
+
+class PhysicsMath {
+
+    static fn abs(x) {
+        if (x < 0) {
+            return -x
+        }
+
+        return x
+    }
+
+    static fn min(a, b) {
+        if (a < b) {
+            return a
+        }
+
+        return b
+    }
+
+    static fn max(a, b) {
+        if (a > b) {
+            return a
+        }
+
+        return b
+    }
+
+    static fn clamp(value, minValue, maxValue) {
+        if (value < minValue) {
+            return minValue
+        }
+
+        if (value > maxValue) {
+            return maxValue
+        }
+
+        return value
+    }
+
+    static fn sqrt(value) {
+        if (value < 0) {
+            throw 'Cannot calculate square root of a negative number'
+        }
+
+        if (value == 0) {
+            return 0
+        }
+
+        auto guess = value
+
+        // Newton-Raphson iteration
+        loop (20, i) {
+            guess = (guess + value / guess) / 2
+        }
+
+        return guess
+    }
+
+    static fn radians(degrees) {
+        return degrees * PI / 180
+    }
+
+    static fn degrees(radians) {
+        return radians * 180 / PI
+    }
+
+    static fn normalizeAngle(angle) {
+        while (angle < 0) {
+            angle = angle + TWO_PI
+        }
+        while (angle >= TWO_PI) {
+            angle = angle - TWO_PI
+        }
+        return angle
+    }
+
+    static fn sin(angle) {
+        auto x = PhysicsMath.normalizeAngle(angle)
+
+        if (x > PI) {
+            x = x - TWO_PI
+        }
+
+        // Taylor approximation
+        auto x2 = x * x
+        auto x3 = x2 * x
+        auto x5 = x3 * x2
+        auto x7 = x5 * x2
+        auto x9 = x7 * x2
+
+        return x - x3 / 6 + x5 / 120 - x7 / 5040 + x9 / 362880
+    }
+
+    static fn cos(angle) {
+        return PhysicsMath.sin(angle + PI / 2)
+    }
+}
+
+
+// ============================================================
+// 2D VECTOR
+// ============================================================
+
+class Vector2 {
+
+    Number x = 0
+    Number y = 0
+
+    fn init(xValue, yValue) {
+        this.x = xValue
+        this.y = yValue
+    }
+
+    fn add(other) {
+        return new Vector2(
+            this.x + other.x,
+            this.y + other.y
+        )
+    }
+
+    fn subtract(other) {
+        return new Vector2(
+            this.x - other.x,
+            this.y - other.y
+        )
+    }
+
+    fn multiply(scalar) {
+        return new Vector2(
+            this.x * scalar,
+            this.y * scalar
+        )
+    }
+
+    fn divide(scalar) {
+        if (scalar == 0) {
+            throw 'Cannot divide vector by zero'
+        }
+
+        return new Vector2(
+            this.x / scalar,
+            this.y / scalar
+        )
+    }
+
+    fn magnitude() {
+        return PhysicsMath.sqrt(
+            this.x * this.x +
+            this.y * this.y
+        )
+    }
+
+    fn magnitudeSquared() {
+        return this.x * this.x + this.y * this.y
+    }
+
+    fn normalize() {
+        auto length = this.magnitude()
+
+        if (length == 0) {
+            return new Vector2(0, 0)
+        }
+
+        return this.divide(length)
+    }
+
+    fn dot(other) {
+        return this.x * other.x + this.y * other.y
+    }
+
+    fn distanceTo(other) {
+        return this.subtract(other).magnitude()
+    }
+
+    fn angle() {
+        return PhysicsMath.radians(
+            PhysicsMath.degrees(
+                PhysicsMath.sin(this.y / this.magnitude())
+            )
+        )
+    }
+
+    fn string() {
+        return 'Vector2(' + this.x + ', ' + this.y + ')'
+    }
+}
+
+
+// ============================================================
+// KINEMATICS
+// ============================================================
+
+class Kinematics {
+
+    // v = d / t
+    static fn velocity(distance, time) {
+        if (time == 0) {
+            throw 'Time cannot be zero'
+        }
+
+        return distance / time
+    }
+
+    // d = v * t
+    static fn distance(velocity, time) {
+        return velocity * time
+    }
+
+    // a = (vf - vi) / t
+    static fn acceleration(initialVelocity, finalVelocity, time) {
+        if (time == 0) {
+            throw 'Time cannot be zero'
+        }
+
+        return (finalVelocity - initialVelocity) / time
+    }
+
+    // vf = vi + at
+    static fn finalVelocity(initialVelocity, acceleration, time) {
+        return initialVelocity + acceleration * time
+    }
+
+    // d = vi*t + 1/2*a*t^2
+    static fn displacement(initialVelocity, acceleration, time) {
+        return initialVelocity * time + 0.5 * acceleration * time * time
+    }
+
+    // vf^2 = vi^2 + 2ad
+    static fn finalVelocityFromDistance(
+        initialVelocity,
+        acceleration,
+        distance
+    ) {
+        auto value = initialVelocity * initialVelocity + 2 * acceleration * distance
+
+        return PhysicsMath.sqrt(value)
+    }
+
+    // Average velocity
+    static fn averageVelocity(initialVelocity, finalVelocity) {
+        return (initialVelocity + finalVelocity) / 2
+    }
+
+    // Free fall distance
+    static fn freeFallDistance(time, gravity) {
+        return 0.5 * gravity * time * time
+    }
+
+    // Free fall velocity
+    static fn freeFallVelocity(time, gravity) {
+        return gravity * time
+    }
+}
+
+
+// ============================================================
+// NEWTON'S LAWS / FORCES
+// ============================================================
+
+class Force {
+
+    // F = ma
+    static fn fromMassAndAcceleration(mass, acceleration) {
+        return mass * acceleration
+    }
+
+    // a = F / m
+    static fn acceleration(force, mass) {
+        if (mass == 0) {
+            throw 'Mass cannot be zero'
+        }
+
+        return force / mass
+    }
+
+    // Weight = mg
+    static fn weight(mass, gravity) {
+        return mass * gravity
+    }
+
+    // Default Earth weight
+    static fn earthWeight(mass) {
+        return mass * GRAVITY
+    }
+
+    // Friction = coefficient * normal force
+    static fn friction(coefficient, normalForce) {
+        return coefficient * normalForce
+    }
+
+    // Spring force = -kx
+    static fn spring(springConstant, displacement) {
+        return -springConstant * displacement
+    }
+
+    // Centripetal force = mv^2/r
+    static fn centripetal(mass, velocity, radius) {
+        if (radius == 0) {
+            throw 'Radius cannot be zero'
+        }
+
+        return mass * velocity * velocity / radius
+    }
+
+    // Gravitational force
+    // F = G * m1 * m2 / r^2
+    static fn gravitational(mass1, mass2, distance) {
+        if (distance == 0) {
+            throw 'Distance cannot be zero'
+        }
+
+        return GRAVITATIONAL_CONSTANT * mass1 * mass2 / (distance * distance)
+    }
+}
+
+
+// ============================================================
+// ENERGY
+// ============================================================
+
+class Energy {
+
+    // Kinetic energy = 1/2 mv^2
+    static fn kinetic(mass, velocity) {
+        return 0.5 * mass * velocity * velocity
+    }
+
+    // Potential energy = mgh
+    static fn gravitationalPotential(mass, height, gravity) {
+        return mass * gravity * height
+    }
+
+    // Earth gravitational potential energy
+    static fn earthPotential(mass, height) {
+        return mass * GRAVITY * height
+    }
+
+    // Spring potential energy = 1/2 kx^2
+    static fn springPotential(springConstant, displacement) {
+        return 0.5 * springConstant * displacement * displacement
+    }
+
+    // Work = Fd
+    static fn work(force, distance) {
+        return force * distance
+    }
+
+    // Power = work / time
+    static fn power(workValue, time) {
+        if (time == 0) {
+            throw 'Time cannot be zero'
+        }
+
+        return workValue / time
+    }
+
+    // Efficiency = useful / input
+    static fn efficiency(usefulEnergy, inputEnergy) {
+        if (inputEnergy == 0) {
+            throw 'Input energy cannot be zero'
+        }
+
+        return usefulEnergy / inputEnergy * 100
+    }
+}
+
+
+// ============================================================
+// MOMENTUM
+// ============================================================
+
+class Momentum {
+
+    // p = mv
+    static fn linear(mass, velocity) {
+        return mass * velocity
+    }
+
+    // Impulse = F * t
+    static fn impulse(force, time) {
+        return force * time
+    }
+
+    // Change in momentum
+    static fn change(initialMomentum, finalMomentum) {
+        return finalMomentum - initialMomentum
+    }
+
+    // Final velocity after perfectly inelastic collision
+    static fn inelasticCollision(
+        mass1,
+        velocity1,
+        mass2,
+        velocity2
+    ) {
+        auto totalMass = mass1 + mass2
+
+        if (totalMass == 0) {
+            throw 'Total mass cannot be zero'
+        }
+
+        return (
+            mass1 * velocity1 +
+            mass2 * velocity2
+        ) / totalMass
+    }
+}
+
+
+// ============================================================
+// CIRCULAR MOTION
+// ============================================================
+
+class CircularMotion {
+
+    // v = 2*pi*r / T
+    static fn velocity(radius, period) {
+        if (period == 0) {
+            throw 'Period cannot be zero'
+        }
+
+        return TWO_PI * radius / period
+    }
+
+    // T = 2*pi*r / v
+    static fn period(radius, velocity) {
+        if (velocity == 0) {
+            throw 'Velocity cannot be zero'
+        }
+
+        return TWO_PI * radius / velocity
+    }
+
+    // f = 1/T
+    static fn frequency(period) {
+        if (period == 0) {
+            throw 'Period cannot be zero'
+        }
+
+        return 1 / period
+    }
+
+    // a = v^2/r
+    static fn acceleration(velocity, radius) {
+        if (radius == 0) {
+            throw 'Radius cannot be zero'
+        }
+
+        return velocity * velocity / radius
+    }
+
+    // omega = 2*pi/T
+    static fn angularVelocity(period) {
+        if (period == 0) {
+            throw 'Period cannot be zero'
+        }
+
+        return TWO_PI / period
+    }
+}
+
+
+// ============================================================
+// PROJECTILE MOTION
+// ============================================================
+
+class Projectile {
+
+    // Horizontal velocity
+    static fn horizontalVelocity(initialVelocity, angle) {
+        return initialVelocity * PhysicsMath.cos(angle)
+    }
+
+    // Vertical velocity
+    static fn verticalVelocity(initialVelocity, angle) {
+        return initialVelocity * PhysicsMath.sin(angle)
+    }
+
+    // Flight time when launch and landing heights are equal
+    static fn flightTime(initialVelocity, angle, gravity) {
+        return 2 * initialVelocity * PhysicsMath.sin(angle) / gravity
+    }
+
+    // Maximum height
+    static fn maximumHeight(initialVelocity, angle, gravity) {
+        auto verticalVelocity = Projectile.verticalVelocity(initialVelocity, angle)
+
+        return (verticalVelocity * verticalVelocity) / (2 * gravity)
+    }
+
+    // Range when launch and landing heights are equal
+    static fn range(initialVelocity, angle, gravity) {
+        return (initialVelocity * initialVelocity * PhysicsMath.sin(2 * angle)) / gravity
+    }
+
+    // Horizontal position at time t
+    static fn x(
+        initialVelocity,
+        angle,
+        time
+    ) {
+        return Projectile.horizontalVelocity(initialVelocity, angle) * time
+    }
+
+    // Vertical position at time t
+    static fn y(
+        initialHeight,
+        initialVelocity,
+        angle,
+        time,
+        gravity
+    ) {
+        return initialHeight + Projectile.verticalVelocity(initialVelocity, angle) * time - 0.5 * gravity * time * time
+    }
+}
+
+
+// ============================================================
+// ROTATIONAL MOTION
+// ============================================================
+
+class Rotation {
+
+    // torque = rF sin(theta)
+    static fn torque(radius, force, angle) {
+        return radius * force * PhysicsMath.sin(angle)
+    }
+
+    // angular acceleration = torque / moment of inertia
+    static fn angularAcceleration(torque, inertia) {
+        if (inertia == 0) {
+            throw 'Moment of inertia cannot be zero'
+        }
+
+        return torque / inertia
+    }
+
+    // angular velocity = angular velocity + alpha*t
+    static fn finalAngularVelocity(
+        initialAngularVelocity,
+        angularAcceleration,
+        time
+    ) {
+        return initialAngularVelocity + angularAcceleration * time
+    }
+}
+
+
+// ============================================================
+// FLUIDS
+// ============================================================
+
+class Fluid {
+
+    // Pressure = F / A
+    static fn pressure(force, area) {
+        if (area == 0) {
+            throw 'Area cannot be zero'
+        }
+
+        return force / area
+    }
+
+    // Density = mass / volume
+    static fn density(mass, volume) {
+        if (volume == 0) {
+            throw 'Volume cannot be zero'
+        }
+
+        return mass / volume
+    }
+
+    // Pressure from depth: P = rho*g*h
+    static fn hydrostaticPressure(
+        density,
+        depth,
+        gravity
+    ) {
+        return density * gravity * depth
+    }
+
+    // Buoyant force = rho*g*V
+    static fn buoyantForce(
+        fluidDensity,
+        displacedVolume,
+        gravity
+    ) {
+        return fluidDensity * gravity * displacedVolume
+    }
+}
+
+
+// ============================================================
+// UNIT CONVERSIONS
+// ============================================================
+
+class PhysicsUnits {
+
+    static fn kmhToMs(speed) {
+        return speed / 3.6
+    }
+
+    static fn msToKmh(speed) {
+        return speed * 3.6
+    }
+
+    static fn degreesToRadians(degrees) {
+        return degrees * PI / 180
+    }
+
+    static fn radiansToDegrees(radians) {
+        return radians * 180 / PI
+    }
+
+    static fn gramsToKilograms(grams) {
+        return grams / 1000
+    }
+
+    static fn kilogramsToGrams(kilograms) {
+        return kilograms * 1000
+    }
+
+    static fn centimetersToMeters(centimeters) {
+        return centimeters / 100
+    }
+
+    static fn metersToCentimeters(meters) {
+        return meters * 100
+    }
+}
+
+
+// ============================================================
+// GENERAL PHYSICS API
+// ============================================================
+
+class Physics {
+
+    static fn kineticEnergy(mass, velocity) {
+        return Energy.kinetic(mass, velocity)
+    }
+
+    static fn potentialEnergy(mass, height) {
+        return Energy.earthPotential(mass, height)
+    }
+
+    static fn force(mass, acceleration) {
+        return Force.fromMassAndAcceleration(
+            mass,
+            acceleration
+        )
+    }
+
+    static fn weight(mass) {
+        return Force.earthWeight(mass)
+    }
+
+    static fn momentum(mass, velocity) {
+        return Momentum.linear(mass, velocity)
+    }
+
+    static fn gravitationalForce(mass1, mass2, distance) {
+        return Force.gravitational(
+            mass1,
+            mass2,
+            distance
+        )
+    }
+
+    static fn distance(
+        initialVelocity,
+        acceleration,
+        time
+    ) {
+        return Kinematics.displacement(
+            initialVelocity,
+            acceleration,
+            time
+        )
+    }
+
+    static fn velocity(
+        initialVelocity,
+        acceleration,
+        time
+    ) {
+        return Kinematics.finalVelocity(
+            initialVelocity,
+            acceleration,
+            time
+        )
+    }
+}

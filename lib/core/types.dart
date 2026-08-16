@@ -40,6 +40,11 @@ enum TType {
   switch_,
   case_,
   default_,
+  try_,
+  catch_,
+  throw_,
+  asyncKw,
+  awaitKw,
 
   // Operators
   operator,

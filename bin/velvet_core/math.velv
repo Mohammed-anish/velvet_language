@@ -1,0 +1,657 @@
+//
+// math.velv
+// Velvet Mathematical Core Library
+//
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+
+Number PI = 3.141592653589793
+Number E = 2.718281828459045
+Number TAU = 6.283185307179586
+Number SQRT_2 = 1.4142135623730951
+Number SQRT_3 = 1.7320508075688772
+Number LN_2 = 0.6931471805599453
+Number LN_10 = 2.302585092994046
+
+
+// ============================================================
+// BASIC MATH
+// ============================================================
+
+class Math {
+
+    static fn abs(x) {
+        if (x < 0) {
+            return -x
+        }
+
+        return x
+    }
+
+    static fn sign(x) {
+        if (x > 0) {
+            return 1
+        }
+
+        if (x < 0) {
+            return -1
+        }
+
+        return 0
+    }
+
+    static fn min(a, b) {
+        if (a < b) {
+            return a
+        }
+
+        return b
+    }
+
+    static fn max(a, b) {
+        if (a > b) {
+            return a
+        }
+
+        return b
+    }
+
+    static fn clamp(value, minimum, maximum) {
+        if (value < minimum) {
+            return minimum
+        }
+
+        if (value > maximum) {
+            return maximum
+        }
+
+        return value
+    }
+
+    static fn square(x) {
+        return x * x
+    }
+
+    static fn cube(x) {
+        return x * x * x
+    }
+
+    static fn average(a, b) {
+        return (a + b) / 2
+    }
+
+    static fn lerp(a, b, t) {
+        return a + (b - a) * t
+    }
+
+
+// ============================================================
+// POWERS / ROOTS
+// ============================================================
+
+    static fn sqrt(value) {
+        if (value < 0) {
+            throw 'Cannot calculate square root of a negative number'
+        }
+
+        if (value == 0) {
+            return 0
+        }
+
+        auto guess = value
+
+        loop (30, i) {
+            guess = (guess + value / guess) / 2
+        }
+
+        return guess
+    }
+
+    static fn cbrt(value) {
+        if (value == 0) {
+            return 0
+        }
+
+        auto sign = 1
+
+        if (value < 0) {
+            sign = -1
+            value = -value
+        }
+
+        auto guess = value
+
+        loop (30, i) {
+            guess = (
+                2 * guess +
+                value / (guess * guess)
+            ) / 3
+        }
+
+        return guess * sign
+    }
+
+    static fn pow(base, exponent) {
+        if (exponent == 0) {
+            return 1
+        }
+
+        if (base == 0) {
+            return 0
+        }
+
+        if (exponent == Math.floor(exponent)) {
+            auto result = 1
+            auto positiveExponent = exponent
+
+            if (exponent < 0) {
+                positiveExponent = -exponent
+            }
+
+            loop (positiveExponent, i) {
+                result = result * base
+            }
+
+            if (exponent < 0) {
+                return 1 / result
+            }
+
+            return result
+        }
+
+        if (base < 0) {
+            throw 'Fractional powers of negative numbers are not supported'
+        }
+
+        return Math.exp(
+            exponent * Math.ln(base)
+        )
+    }
+
+    static fn squareRoot(value) {
+        return Math.sqrt(value)
+    }
+
+
+// ============================================================
+// ROUNDING
+// ============================================================
+
+    static fn floor(x) {
+        auto i = x.toInt()
+
+        if (x < i) {
+            return i - 1
+        }
+
+        return i
+    }
+
+    static fn ceil(x) {
+        auto i = x.toInt()
+
+        if (x > i) {
+            return i + 1
+        }
+
+        return i
+    }
+
+    static fn round(x) {
+        if (x >= 0) {
+            return Math.floor(x + 0.5)
+        }
+
+        return Math.ceil(x - 0.5)
+    }
+
+    static fn trunc(x) {
+        return x.toInt()
+    }
+
+
+// ============================================================
+// ANGLES
+// ============================================================
+
+    static fn radians(degrees) {
+        return degrees * PI / 180
+    }
+
+    static fn degrees(radians) {
+        return radians * 180 / PI
+    }
+
+    static fn normalizeRadians(angle) {
+        auto turns = Math.floor(angle / TAU)
+
+        angle = angle - turns * TAU
+
+        if (angle > PI) {
+            angle = angle - TAU
+        }
+
+        return angle
+    }
+
+
+// ============================================================
+// TRIGONOMETRY
+// ============================================================
+
+    static fn sin(angle) {
+        auto x = Math.normalizeRadians(angle)
+
+        auto x2 = x * x
+        auto x3 = x2 * x
+        auto x5 = x3 * x2
+        auto x7 = x5 * x2
+        auto x9 = x7 * x2
+        auto x11 = x9 * x2
+        auto x13 = x11 * x2
+
+        return x
+            - x3 / 6
+            + x5 / 120
+            - x7 / 5040
+            + x9 / 362880
+            - x11 / 39916800
+            + x13 / 6227020800
+    }
+
+    static fn cos(angle) {
+        auto x = Math.normalizeRadians(angle)
+
+        auto x2 = x * x
+        auto x4 = x2 * x2
+        auto x6 = x4 * x2
+        auto x8 = x6 * x2
+        auto x10 = x8 * x2
+        auto x12 = x10 * x2
+
+        return 1
+            - x2 / 2
+            + x4 / 24
+            - x6 / 720
+            + x8 / 40320
+            - x10 / 3628800
+            + x12 / 479001600
+    }
+
+    static fn tan(angle) {
+        auto sine = Math.sin(angle)
+        auto cosine = Math.cos(angle)
+
+        if (Math.abs(cosine) < 0.0000000001) {
+            throw 'Tangent is undefined at this angle'
+        }
+
+        return sine / cosine
+    }
+
+
+// ============================================================
+// INVERSE TRIGONOMETRY
+// ============================================================
+
+    static fn atan(x) {
+
+        if (x == 0) {
+            return 0
+        }
+
+        auto sign = 1
+
+        if (x < 0) {
+            sign = -1
+            x = -x
+        }
+
+        auto result = 0
+
+        if (x > 1) {
+            result = PI / 2 - Math.atan(1 / x)
+            return result * sign
+        }
+
+        // atan(x) approximation
+        auto x2 = x * x
+        auto x3 = x2 * x
+        auto x5 = x3 * x2
+        auto x7 = x5 * x2
+        auto x9 = x7 * x2
+        auto x11 = x9 * x2
+
+        result =
+            x
+            - x3 / 3
+            + x5 / 5
+            - x7 / 7
+            + x9 / 9
+            - x11 / 11
+
+        return result * sign
+    }
+
+    static fn atan2(y, x) {
+
+        if (x > 0) {
+            return Math.atan(y / x)
+        }
+
+        if (x < 0 && y >= 0) {
+            return Math.atan(y / x) + PI
+        }
+
+        if (x < 0 && y < 0) {
+            return Math.atan(y / x) - PI
+        }
+
+        if (x == 0 && y > 0) {
+            return PI / 2
+        }
+
+        if (x == 0 && y < 0) {
+            return -PI / 2
+        }
+
+        throw 'atan2 undefined for (0, 0)'
+    }
+
+    static fn asin(x) {
+
+        if (x < -1 || x > 1) {
+            throw 'asin input must be between -1 and 1'
+        }
+
+        if (x == 1) {
+            return PI / 2
+        }
+
+        if (x == -1) {
+            return -PI / 2
+        }
+
+        return Math.atan2(
+            x,
+            Math.sqrt(1 - x * x)
+        )
+    }
+
+    static fn acos(x) {
+
+        if (x < -1 || x > 1) {
+            throw 'acos input must be between -1 and 1'
+        }
+
+        return PI / 2 - Math.asin(x)
+    }
+
+
+// ============================================================
+// EXPONENTIAL / LOGARITHMIC
+// ============================================================
+
+    static fn exp(x) {
+
+        if (x == 0) {
+            return 1
+        }
+
+        auto sign = 1
+
+        if (x < 0) {
+            sign = -1
+            x = -x
+        }
+
+        // Reduce the input.
+        auto n = Math.floor(x / LN_2)
+        auto remainder = x - n * LN_2
+
+        // e^remainder using Taylor series.
+        auto result = 1
+        auto term = 1
+
+        loop (20, i) {
+            term = term * remainder / (i + 1)
+            result = result + term
+        }
+
+        // Multiply by 2^n.
+        auto multiplier = 1
+
+        loop (n, i) {
+            multiplier = multiplier * 2
+        }
+
+        result = result * multiplier
+
+        if (sign < 0) {
+            return 1 / result
+        }
+
+        return result
+    }
+
+    static fn ln(value) {
+
+        if (value <= 0) {
+            throw 'Natural logarithm requires a positive number'
+        }
+
+        auto x = value
+        auto exponent = 0
+
+        // Scale into a numerically useful range.
+        while (x > 2) {
+            x = x / 2
+            exponent = exponent + 1
+        }
+
+        while (x < 1) {
+            x = x * 2
+            exponent = exponent - 1
+        }
+
+        // ln(x) using:
+        // ln(x) = 2 * (z + z^3/3 + z^5/5 + ...)
+        // z = (x - 1)/(x + 1)
+
+        auto z = (x - 1) / (x + 1)
+        auto z2 = z * z
+
+        auto result = 0
+        auto power = z
+
+        loop (20, i) {
+            auto denominator = 2 * i + 1
+
+            result =
+                result +
+                power / denominator
+
+            power = power * z2
+        }
+
+        result = result * 2
+
+        return result + exponent * LN_2
+    }
+
+    static fn log10(value) {
+        return Math.ln(value) / LN_10
+    }
+
+    static fn log2(value) {
+        return Math.ln(value) / LN_2
+    }
+
+
+// ============================================================
+// HYPERBOLIC FUNCTIONS
+// ============================================================
+
+    static fn sinh(x) {
+        auto positive = Math.exp(x)
+        auto negative = Math.exp(-x)
+
+        return (positive - negative) / 2
+    }
+
+    static fn cosh(x) {
+        auto positive = Math.exp(x)
+        auto negative = Math.exp(-x)
+
+        return (positive + negative) / 2
+    }
+
+    static fn tanh(x) {
+        auto e1 = Math.exp(x)
+        auto e2 = Math.exp(-x)
+
+        return (e1 - e2) / (e1 + e2)
+    }
+
+
+// ============================================================
+// DISTANCE / GEOMETRY
+// ============================================================
+
+    static fn distance2D(x1, y1, x2, y2) {
+        auto dx = x2 - x1
+        auto dy = y2 - y1
+
+        return Math.sqrt(
+            dx * dx + dy * dy
+        )
+    }
+
+    static fn distance3D(
+        x1,
+        y1,
+        z1,
+        x2,
+        y2,
+        z2
+    ) {
+        auto dx = x2 - x1
+        auto dy = y2 - y1
+        auto dz = z2 - z1
+
+        return Math.sqrt(
+            dx * dx +
+            dy * dy +
+            dz * dz
+        )
+    }
+
+    static fn hypot(x, y) {
+        return Math.sqrt(
+            x * x + y * y
+        )
+    }
+
+
+// ============================================================
+// COMBINATORICS
+// ============================================================
+
+    static fn factorial(n) {
+
+        if (n < 0) {
+            throw 'Factorial requires a non-negative integer'
+        }
+
+        if (n != Math.floor(n)) {
+            throw 'Factorial requires an integer'
+        }
+
+        auto result = 1
+
+        loop (n, i) {
+            result = result * (i + 1)
+        }
+
+        return result
+    }
+
+    static fn permutation(n, r) {
+
+        if (n < 0 || r < 0 || r > n) {
+            throw 'Invalid permutation values'
+        }
+
+        return Math.factorial(n) /
+            Math.factorial(n - r)
+    }
+
+    static fn combination(n, r) {
+
+        if (n < 0 || r < 0 || r > n) {
+            throw 'Invalid combination values'
+        }
+
+        return Math.factorial(n) /
+            (Math.factorial(r) * Math.factorial(n - r))
+    }
+
+
+// ============================================================
+// GCD / LCM
+// ============================================================
+
+    static fn gcd(a, b) {
+
+        a = Math.abs(a)
+        b = Math.abs(b)
+
+        while (b != 0) {
+            auto remainder =
+                a - Math.floor(a / b) * b
+
+            a = b
+            b = remainder
+        }
+
+        return a
+    }
+
+    static fn lcm(a, b) {
+
+        if (a == 0 || b == 0) {
+            return 0
+        }
+
+        return Math.abs(
+            a * b
+        ) / Math.gcd(a, b)
+    }
+
+
+// ============================================================
+// INTERPOLATION
+// ============================================================
+
+    static fn smoothstep(edge0, edge1, x) {
+
+        auto t = Math.clamp((x - edge0) / (edge1 - edge0), 0, 1)
+
+        return t * t * (
+            3 - 2 * t
+        )
+    }
+
+    static fn smootherstep(edge0, edge1, x) {
+
+        auto t = Math.clamp((x - edge0) / (edge1 - edge0), 0, 1)
+
+        return t * t * t * (
+            t * (
+                t * 6 - 15
+            ) + 10
+        )
+    }
+}

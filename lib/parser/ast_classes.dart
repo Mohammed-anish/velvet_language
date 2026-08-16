@@ -24,18 +24,22 @@ class FunctionDecl extends Node {
   final List<Node> body;
   final Node? returnType;
   final bool isOuter;
+  final bool isStatic;
   FunctionDecl(
       {required this.name,
       this.returnType,
       required this.kind,
       required this.body,
       required this.arguments,
-      required this.isOuter});
+      required this.isOuter,
+      this.isStatic = false,
+      this.isAsync = false});
   final List<String> arguments;
+  final bool isAsync;
 
   @override
   String toString() {
-    return 'FunctionDecl(name: $name, kind: $kind, body: $body, returnType: $returnType, isOuter: $isOuter, arguments: $arguments)';
+    return 'FunctionDecl(name: $name, kind: $kind, body: $body, returnType: $returnType, isOuter: $isOuter, isStatic: $isStatic, isAsync: $isAsync, arguments: $arguments)';
   }
 }
 
@@ -49,6 +53,14 @@ class FunctionCall extends Node {
 
   @override
   String toString() => 'FunctionCall(name: $callee, arguments: $arguments)';
+}
+
+class AwaitNode extends Node {
+  final Node expression;
+  AwaitNode({required this.expression});
+
+  @override
+  String toString() => 'AwaitNode(expression: $expression)';
 }
 
 class Programe extends Node {
@@ -220,7 +232,7 @@ class ClassDeclration extends Node {
 
 class NewClassInstance extends Node {
   final String name;
-  final List<String> args;
+  final List<Node> args;
   NewClassInstance({
     required this.name,
     required this.args,
@@ -228,4 +240,84 @@ class NewClassInstance extends Node {
 
   @override
   String toString() => 'NewClassInstance(name: $name, args: $args)';
+}
+
+class WhileNode extends Node {
+  final Node condition;
+  final List<Node> body;
+
+  WhileNode({required this.condition, required this.body});
+
+  @override
+  String toString() => 'WhileNode(condition: $condition, body: $body)';
+}
+
+class ForNode extends Node {
+  final Node? init;
+  final Node? condition;
+  final Node? update;
+  final List<Node> body;
+
+  ForNode({this.init, this.condition, this.update, required this.body});
+}
+
+class ArrayNode extends Node {
+  final List<Node> elements;
+
+  ArrayNode({required this.elements});
+
+  @override
+  String toString() => 'ArrayNode(elements: $elements)';
+}
+
+class IndexAccessNode extends Node {
+  final Node target;
+  final Node index;
+
+  IndexAccessNode({required this.target, required this.index});
+
+  @override
+  String toString() => 'IndexAccessNode(target: $target, index: $index)';
+}
+
+class ImportNode extends Node {
+  final String path;
+
+  ImportNode({required this.path});
+
+  @override
+  String toString() => 'ImportNode(path: $path)';
+}
+
+class MapNode extends Node {
+  final Map<Node, Node> entries;
+
+  MapNode({required this.entries});
+
+  @override
+  String toString() => 'MapNode(entries: $entries)';
+}
+
+class TryCatchNode extends Node {
+  final List<Node> tryBlock;
+  final String? catchVar;
+  final List<Node> catchBlock;
+
+  TryCatchNode({
+    required this.tryBlock,
+    this.catchVar,
+    required this.catchBlock,
+  });
+
+  @override
+  String toString() => 'TryCatchNode(catchVar: $catchVar)';
+}
+
+class ThrowNode extends Node {
+  final Node expression;
+
+  ThrowNode({required this.expression});
+
+  @override
+  String toString() => 'ThrowNode(expression: $expression)';
 }

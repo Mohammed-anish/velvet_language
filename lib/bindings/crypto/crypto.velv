@@ -1,0 +1,49 @@
+class Digest {
+    outer fn toString()
+}
+
+class HashSink {
+    outer fn updateHash(chunk)
+    outer fn add(data)
+    outer fn close()
+}
+
+class DigestSink {
+    outer fn add(value)
+    outer fn close()
+}
+
+class Hash {
+    outer fn convert(input)
+    outer fn startChunkedConversion(sink)
+}
+
+class Sha384Sink {
+}
+
+class Sha512Sink {
+}
+
+class Sha512224Sink {
+}
+
+class Sha512256Sink {
+}
+
+class Hmac {
+    outer fn convert(input)
+    outer fn startChunkedConversion(sink)
+}
+
+class Sha384Sink {
+}
+
+class Sha512Sink {
+}
+
+class Sha512224Sink {
+}
+
+class Sha512256Sink {
+}
+

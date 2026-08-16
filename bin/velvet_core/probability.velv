@@ -1,0 +1,739 @@
+//
+// probability.velv
+// Velvet Probability & Combinatorics Library
+//
+
+import "math.velv"
+import "statistics.velv"
+
+
+class Probability {
+
+    // ========================================================
+    // BASIC PROBABILITY
+    // ========================================================
+
+    // P(A) = favorable / total
+
+    static fn probability(favorable, total) {
+
+        if (total == 0) {
+            throw 'Total outcomes cannot be zero'
+        }
+
+        return favorable / total
+    }
+
+
+    // P(not A) = 1 - P(A)
+
+    static fn complement(probability) {
+
+        return 1 - probability
+    }
+
+
+    // P(A and B) for independent events
+
+    static fn independent(probabilityA, probabilityB) {
+
+        return probabilityA * probabilityB
+    }
+
+
+    // P(A or B) for mutually exclusive events
+
+    static fn mutuallyExclusive(probabilityA, probabilityB) {
+
+        return probabilityA + probabilityB
+    }
+
+
+    // P(A or B)
+    //
+    // P(A ∪ B) = P(A) + P(B) - P(A ∩ B)
+
+    static fn union(
+        probabilityA,
+        probabilityB,
+        intersection
+    ) {
+
+        return probabilityA +
+            probabilityB -
+            intersection
+    }
+
+
+    // P(A | B)
+
+    static fn conditional(
+        intersection,
+        probabilityB
+    ) {
+
+        if (probabilityB == 0) {
+            throw 'Probability of B cannot be zero'
+        }
+
+        return intersection /
+            probabilityB
+    }
+
+
+    // ========================================================
+    // BAYES THEOREM
+    // ========================================================
+
+    // P(A | B) =
+    // P(B | A) * P(A) / P(B)
+
+    static fn bayes(
+        probabilityBGivenA,
+        probabilityA,
+        probabilityB
+    ) {
+
+        if (probabilityB == 0) {
+            throw 'Probability of B cannot be zero'
+        }
+
+        return (
+            probabilityBGivenA *
+            probabilityA
+        ) / probabilityB
+    }
+
+
+    // ========================================================
+    // COMBINATORICS
+    // ========================================================
+
+    // n!
+
+    static fn factorial(n) {
+
+        return Math.factorial(n)
+    }
+
+
+    // nPr
+
+    static fn permutation(n, r) {
+
+        if (n < 0 || r < 0 || r > n) {
+            throw 'Invalid permutation values'
+        }
+
+        return Math.factorial(n) /
+            Math.factorial(n - r)
+    }
+
+
+    // nCr
+
+    static fn combination(n, r) {
+
+        if (n < 0 || r < 0 || r > n) {
+            throw 'Invalid combination values'
+        }
+
+        return Math.factorial(n) /
+            (
+                Math.factorial(r) *
+                Math.factorial(n - r)
+            )
+    }
+
+
+    // ========================================================
+    // BINOMIAL DISTRIBUTION
+    // ========================================================
+
+    // P(X = k)
+    //
+    // C(n,k) * p^k * (1-p)^(n-k)
+
+    static fn binomial(
+        n,
+        k,
+        probability
+    ) {
+
+        if (n < 0) {
+            throw 'Number of trials cannot be negative'
+        }
+
+        if (k < 0 || k > n) {
+            throw 'Success count must be between 0 and n'
+        }
+
+        if (
+            probability < 0 ||
+            probability > 1
+        ) {
+            throw 'Probability must be between 0 and 1'
+        }
+
+        return Math.combination(n, k) *
+            Math.pow(
+                probability,
+                k
+            ) *
+            Math.pow(
+                1 - probability,
+                n - k
+            )
+    }
+
+
+    // Probability of at most k successes
+
+    static fn binomialAtMost(
+        n,
+        k,
+        probability
+    ) {
+
+        if (k < 0) {
+            return 0
+        }
+
+        if (k >= n) {
+            return 1
+        }
+
+        auto total = 0
+
+        loop (k + 1, i) {
+
+            total =
+                total +
+                Probability.binomial(
+                    n,
+                    i,
+                    probability
+                )
+        }
+
+        return total
+    }
+
+
+    // Probability of at least k successes
+
+    static fn binomialAtLeast(
+        n,
+        k,
+        probability
+    ) {
+
+        if (k <= 0) {
+            return 1
+        }
+
+        if (k > n) {
+            return 0
+        }
+
+        return 1 -
+            Probability.binomialAtMost(
+                n,
+                k - 1,
+                probability
+            )
+    }
+
+
+    // ========================================================
+    // EXPECTED VALUE
+    // ========================================================
+
+    // E(X) = Σ xP(x)
+
+    static fn expectedValue(values, probabilities) {
+
+        if (
+            values.length() !=
+            probabilities.length()
+        ) {
+            throw 'Values and probabilities must have the same length'
+        }
+
+        if (values.length() == 0) {
+            throw 'Collections cannot be empty'
+        }
+
+        auto total = 0
+        auto probabilityTotal = 0
+
+        loop (values.length(), i) {
+
+            total =
+                total +
+                values[i] *
+                probabilities[i]
+
+            probabilityTotal =
+                probabilityTotal +
+                probabilities[i]
+        }
+
+        if (
+            probabilityTotal < 0.999999 ||
+            probabilityTotal > 1.000001
+        ) {
+            throw 'Probabilities must sum to 1'
+        }
+
+        return total
+    }
+
+
+    // ========================================================
+    // VARIANCE OF DISCRETE DISTRIBUTION
+    // ========================================================
+
+    static fn variance(values, probabilities) {
+
+        auto mean =
+            Probability.expectedValue(
+                values,
+                probabilities
+            )
+
+        auto total = 0
+
+        loop (values.length(), i) {
+
+            auto difference =
+                values[i] - mean
+
+            total =
+                total +
+                difference *
+                difference *
+                probabilities[i]
+        }
+
+        return total
+    }
+
+
+    static fn standardDeviation(
+        values,
+        probabilities
+    ) {
+
+        return Math.sqrt(
+            Probability.variance(
+                values,
+                probabilities
+            )
+        )
+    }
+
+
+    // ========================================================
+    // UNIFORM DISTRIBUTION
+    // ========================================================
+
+    // Continuous uniform PDF
+
+    static fn uniform(
+        value,
+        minimum,
+        maximum
+    ) {
+
+        if (maximum <= minimum) {
+            throw 'Maximum must be greater than minimum'
+        }
+
+        if (
+            value < minimum ||
+            value > maximum
+        ) {
+            return 0
+        }
+
+        return 1 /
+            (
+                maximum - minimum
+            )
+    }
+
+
+    // Uniform CDF
+
+    static fn uniformCdf(
+        value,
+        minimum,
+        maximum
+    ) {
+
+        if (maximum <= minimum) {
+            throw 'Maximum must be greater than minimum'
+        }
+
+        if (value <= minimum) {
+            return 0
+        }
+
+        if (value >= maximum) {
+            return 1
+        }
+
+        return (
+            value - minimum
+        ) / (
+            maximum - minimum
+        )
+    }
+
+
+    // ========================================================
+    // NORMAL DISTRIBUTION
+    // ========================================================
+
+    // Probability density function
+    //
+    // 1 / sqrt(2πσ²)
+    // * e^(-(x-μ)² / 2σ²)
+
+    static fn normal(
+        value,
+        mean,
+        standardDeviation
+    ) {
+
+        if (standardDeviation <= 0) {
+            throw 'Standard deviation must be greater than zero'
+        }
+
+        auto difference =
+            value - mean
+
+        auto exponent =
+            -(
+                difference *
+                difference
+            ) /
+            (
+                2 *
+                standardDeviation *
+                standardDeviation
+            )
+
+        auto denominator =
+            standardDeviation *
+            Math.sqrt(
+                2 * PI
+            )
+
+        return Math.exp(exponent) /
+            denominator
+    }
+
+
+    // Normal CDF approximation.
+    //
+    // Returns P(X <= value)
+
+    static fn normalCdf(
+        value,
+        mean,
+        standardDeviation
+    ) {
+
+        if (standardDeviation <= 0) {
+            throw 'Standard deviation must be greater than zero'
+        }
+
+        auto z =
+            (
+                value - mean
+            ) /
+            (
+                standardDeviation *
+                Math.sqrt(2)
+            )
+
+        // Approximation of erf(z)
+        auto sign = 1
+
+        if (z < 0) {
+            sign = -1
+            z = -z
+        }
+
+        auto t =
+            1 /
+            (
+                1 +
+                0.3275911 * z
+            )
+
+        auto a1 = 0.254829592
+        auto a2 = -0.284496736
+        auto a3 = 1.421413741
+        auto a4 = -1.453152027
+        auto a5 = 1.061405429
+
+        auto polynomial =
+            (
+                (
+                    (
+                        (
+                            a5 * t +
+                            a4
+                        ) * t +
+                        a3
+                    ) * t +
+                    a2
+                ) * t +
+                a1
+            ) * t
+
+        auto erf =
+            1 -
+            polynomial *
+            Math.exp(
+                -z * z
+            )
+
+        erf = erf * sign
+
+        return (
+            1 + erf
+        ) / 2
+    }
+
+
+    // ========================================================
+    // BERNOULLI
+    // ========================================================
+
+    static fn bernoulli(value, probability) {
+
+        if (
+            probability < 0 ||
+            probability > 1
+        ) {
+            throw 'Probability must be between 0 and 1'
+        }
+
+        if (value == 1) {
+            return probability
+        }
+
+        if (value == 0) {
+            return 1 - probability
+        }
+
+        throw 'Bernoulli value must be 0 or 1'
+    }
+
+
+    // ========================================================
+    // GEOMETRIC DISTRIBUTION
+    // ========================================================
+
+    // Probability that first success occurs on kth trial.
+    //
+    // P(X=k) = (1-p)^(k-1) * p
+
+    static fn geometric(k, probability) {
+
+        if (k < 1) {
+            throw 'Trial number must be at least 1'
+        }
+
+        if (
+            probability <= 0 ||
+            probability > 1
+        ) {
+            throw 'Probability must be greater than 0 and at most 1'
+        }
+
+        return Math.pow(
+            1 - probability,
+            k - 1
+        ) * probability
+    }
+
+
+    // ========================================================
+    // POISSON DISTRIBUTION
+    // ========================================================
+
+    // P(X=k) = e^-λ * λ^k / k!
+
+    static fn poisson(k, lambda) {
+
+        if (k < 0) {
+            throw 'k cannot be negative'
+        }
+
+        if (lambda <= 0) {
+            throw 'Lambda must be greater than zero'
+        }
+
+        return Math.exp(-lambda) *
+            Math.pow(lambda, k) /
+            Math.factorial(k)
+    }
+
+
+    // ========================================================
+    // HYPERGEOMETRIC DISTRIBUTION
+    // ========================================================
+
+    // Population = N
+    // Successes = K
+    // Sample = n
+    // Observed successes = k
+
+    static fn hypergeometric(
+        population,
+        successes,
+        sample,
+        observed
+    ) {
+
+        if (
+            population < 0 ||
+            successes < 0 ||
+            sample < 0 ||
+            observed < 0
+        ) {
+            throw 'Values cannot be negative'
+        }
+
+        if (successes > population) {
+            throw 'Successes cannot exceed population'
+        }
+
+        if (sample > population) {
+            throw 'Sample cannot exceed population'
+        }
+
+        if (observed > successes) {
+            return 0
+        }
+
+        if (
+            sample - observed >
+            population - successes
+        ) {
+            return 0
+        }
+
+        auto numerator =
+            Math.combination(
+                successes,
+                observed
+            ) *
+            Math.combination(
+                population - successes,
+                sample - observed
+            )
+
+        auto denominator =
+            Math.combination(
+                population,
+                sample
+            )
+
+        return numerator / denominator
+    }
+
+
+    // ========================================================
+    // SAMPLE MEAN DISTRIBUTION
+    // ========================================================
+
+    static fn standardError(
+        standardDeviation,
+        sampleSize
+    ) {
+
+        if (sampleSize <= 0) {
+            throw 'Sample size must be greater than zero'
+        }
+
+        return standardDeviation /
+            Math.sqrt(sampleSize)
+    }
+
+
+    // ========================================================
+    // ODDS
+    // ========================================================
+
+    // Probability -> odds
+
+    static fn probabilityToOdds(probability) {
+
+        if (
+            probability < 0 ||
+            probability > 1
+        ) {
+            throw 'Probability must be between 0 and 1'
+        }
+
+        if (probability == 1) {
+            throw 'Odds are infinite when probability is 1'
+        }
+
+        return probability /
+            (
+                1 - probability
+            )
+    }
+
+
+    // Odds -> probability
+
+    static fn oddsToProbability(odds) {
+
+        if (odds < 0) {
+            throw 'Odds cannot be negative'
+        }
+
+        return odds /
+            (
+                1 + odds
+            )
+    }
+
+
+    // ========================================================
+    // PERCENT
+    // ========================================================
+
+    static fn toPercent(probability) {
+
+        if (
+            probability < 0 ||
+            probability > 1
+        ) {
+            throw 'Probability must be between 0 and 1'
+        }
+
+        return probability * 100
+    }
+
+
+    static fn fromPercent(percent) {
+
+        if (
+            percent < 0 ||
+            percent > 100
+        ) {
+            throw 'Percent must be between 0 and 100'
+        }
+
+        return percent / 100
+    }
+}
