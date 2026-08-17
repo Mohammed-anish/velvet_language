@@ -1,0 +1,33 @@
+log "hello world!"
+
+repeat 3 {
+  log "repeating..."
+}
+
+auto status = "active"
+
+unless status == "active" {
+  log "The user is inactive!"
+}
+
+unless status == "banned" {
+  log "The user is not banned, proceeding..."
+}
+
+test_assert "1 + 1 is 2" 1 + 1 == 2
+test_assert "Status is inactive" status == "inactive"
+
+transaction "UsersDB" {
+  log "Inserting new user..."
+  auto user_id = 123
+  log "User ID: " + user_id
+}
+
+transaction "OrdersDB" {
+  log "Creating order..."
+  throw "Database connection lost!"
+}
+
+fetch_api "POST" "https://api.velvet.lang/users" 2 true {
+  log "Sending payload..."
+}

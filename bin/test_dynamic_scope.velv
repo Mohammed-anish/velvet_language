@@ -1,0 +1,25 @@
+fn renderButton(label) {
+  requiresContext currentTheme, userSession
+  print("Rendering " + label)
+  print("Theme: " + currentTheme)
+  print("User: " + userSession)
+}
+
+fn main() {
+  context auto currentTheme = "Dark Mode"
+  context auto userSession = "Alice"
+  renderButton("Submit")
+}
+
+fn failTest() {
+  // These are standard variables, NOT context variables!
+  auto currentTheme = "Light Mode"
+  auto userSession = "Bob"
+  renderButton("Cancel")
+}
+
+print("Running main()...")
+main()
+
+print("Running failTest()...")
+failTest()

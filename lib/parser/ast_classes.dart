@@ -1,4 +1,7 @@
-abstract class Node {}
+abstract class Node {
+  int line = -1;
+  int column = -1;
+}
 
 class BineryNode extends Node {
   final Node left;
@@ -125,6 +128,7 @@ class VariableDeclarationNode extends Node {
   final bool isReactive;
   final bool isField;
   final bool isStatic;
+  final bool isContext;
 
   VariableDeclarationNode(
       {required this.name,
@@ -132,11 +136,12 @@ class VariableDeclarationNode extends Node {
       required this.value,
       required this.isField,
       required this.isStatic,
+      this.isContext = false,
       this.isReactive = false});
 
   @override
   String toString() {
-    return 'VariableDeclarationNode(name: $name, kind: $kind, value: $value, isReactive: $isReactive, isField: $isField, isStatic: $isStatic)';
+    return 'VariableDeclarationNode(name: $name, kind: $kind, value: $value, isReactive: $isReactive, isField: $isField, isStatic: $isStatic, isContext: $isContext)';
   }
 }
 
@@ -330,4 +335,21 @@ class ThrowNode extends Node {
 
   @override
   String toString() => 'ThrowNode(expression: $expression)';
+}
+
+class BlockNode extends Node {
+  final List<Node> statements;
+
+  BlockNode({required this.statements});
+
+  @override
+  String toString() => 'BlockNode(statements: $statements)';
+}
+
+class RequiresContextNode extends Node {
+  final List<String> variables;
+  RequiresContextNode({required this.variables});
+
+  @override
+  String toString() => 'RequiresContextNode(variables: $variables)';
 }

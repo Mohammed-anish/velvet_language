@@ -97,5 +97,8 @@ enum TType {
   new_,
   this_,
   outer, derives,
-  state_
+  state_,
+  actions_,
+  requiresContext_,
+  context_
 }

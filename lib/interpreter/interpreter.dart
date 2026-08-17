@@ -10,6 +10,23 @@ import 'package:velvet_cmp/runtime/runtime_type.dart';
 import 'package:velvet_cmp/lexer/tokenizer.dart';
 import 'package:velvet_cmp/parser/parser.dart';
 
+class VelvetException implements Exception {
+  final String message;
+  final List<String> callStack;
+  VelvetException(this.message, this.callStack);
+
+  @override
+  String toString() {
+    var buffer = StringBuffer();
+    buffer.writeln("VelvetException: $message");
+    buffer.writeln("Stack Trace:");
+    for (var frame in callStack) {
+      buffer.writeln("  at $frame");
+    }
+    return buffer.toString();
+  }
+}
+
 class Interpreter with Scopes {
   Map<String, Node> functions = {};
   KlassInstance? currentThis;
@@ -29,6 +46,18 @@ class Interpreter with Scopes {
         await execute(node);
       }
     }
+
+    if (ast is BlockNode) {
+      dynamic lastResult;
+      for (final Node node in ast.statements) {
+        lastResult = await execute(node);
+        if (lastResult is _ReturnClause) {
+          return lastResult;
+        }
+      }
+      return lastResult;
+    }
+
 
     if (ast is BineryNode) {
       if (ast.op == '&&') {
@@ -92,11 +121,15 @@ class Interpreter with Scopes {
           ast.kind != RunTimeType.check(await execute(ast.value))) {
         throw 'Variable needs ${ast.kind} but got ${RunTimeType.check(await execute(ast.value))}';
       }
-      defineVar(ast.name, await execute(ast.value));
-
       if (ast.isReactive) {
         setEmptyReactive(ast.name);
       }
+      var value = await execute(ast.value);
+      if (ast.isContext) {
+        defineContextVar(ast.name, value);
+      }
+      defineVar(ast.name, value);
+      return null;
     }
     if (ast case StaticField static) {
       static.target.setStatic(static.name, await execute(static.value));
@@ -223,22 +256,33 @@ class Interpreter with Scopes {
           defineVar(func.arguments[i], await execute(ast.arguments[i]));
         }
 
-        for (Node function in func.body) {
-          var result = await execute(function);
+        try {
+          for (Node function in func.body) {
+            var result = await execute(function);
 
-          if (result is _ReturnClause) {
-            if (func.returnType != null &&
-                (RunTimeType.check(result.value)) !=
-                    (func.returnType as IdentifierNode).name) {
-              throw Exception(
-                  'Expected return type is ${(func.returnType as IdentifierNode).name}. but got ${result.value}');
+            if (result is _ReturnClause) {
+              if (func.returnType != null &&
+                  (RunTimeType.check(result.value)) !=
+                      (func.returnType as IdentifierNode).name) {
+                throw Exception(
+                    'Expected return type is ${(func.returnType as IdentifierNode).name}. but got ${result.value}');
+              }
+
+              return result.value;
             }
-
-            return result.value;
           }
+        } catch (e) {
+          String frame = '${idf.name}() line ${ast.line}:${ast.column}';
+          if (e is VelvetException) {
+            e.callStack.add(frame);
+            rethrow;
+          } else {
+            String msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : e.toString();
+            throw VelvetException(msg, [frame]);
+          }
+        } finally {
+          popScope();
         }
-
-        popScope();
       } else if (ast.callee case MemberAccess member) {
         var rawObject = await execute(member.object);
 
@@ -655,6 +699,18 @@ class Interpreter with Scopes {
     if (ast is ThrowNode) {
       var value = await execute(ast.expression);
       throw Exception(value.toString());
+    }
+
+    if (ast is RequiresContextNode) {
+      for (var v in ast.variables) {
+        try {
+          var val = getContextVar(v);
+          defineVar(v, val);
+        } catch (e) {
+          throw Exception('Context variable "$v" is required but was not provided as a context in the calling environment.');
+        }
+      }
+      return null;
     }
 
     if (ast is ClassDeclration) {

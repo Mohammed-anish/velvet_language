@@ -1,0 +1,18 @@
+fn deeplyNested() {
+  requiresContext configValue
+}
+
+fn innerFunction() {
+  deeplyNested()
+}
+
+fn outerFunction() {
+  innerFunction()
+}
+
+fn main() {
+  print("Starting deep stack test...")
+  outerFunction()
+}
+
+main()

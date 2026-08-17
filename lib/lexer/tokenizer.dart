@@ -274,6 +274,9 @@ class Tokenizer {
       'throw': TType.throw_,
       'async': TType.asyncKw,
       'await': TType.awaitKw,
+      'actions': TType.actions_,
+      'requiresContext': TType.requiresContext_,
+      'context': TType.context_,
     };
 
     final type = keywords[text] ?? TType.identifier;

@@ -3,15 +3,18 @@ import 'package:velvet_cmp/parser/ast_classes.dart';
 mixin Scopes {
   List<Map<String, dynamic>> scopes = [{}];
   List<Map<String, List<List<Node>>>> reactiveScopes = [{}];
+  List<Map<String, dynamic>> contextScopes = [{}];
 
   void pushScope() {
     scopes.add({});
     reactiveScopes.add({});
+    contextScopes.add({});
   }
 
   void popScope() {
     scopes.removeLast();
     reactiveScopes.removeLast();
+    contextScopes.removeLast();
   }
 
   dynamic getVar(String name) {
@@ -33,6 +36,17 @@ mixin Scopes {
 
   void defineVar(String name, dynamic value) {
     scopes.last[name] = value;
+  }
+
+  void defineContextVar(String name, dynamic value) {
+    contextScopes.last[name] = value;
+  }
+
+  dynamic getContextVar(String name) {
+    for (int i = contextScopes.length - 1; i >= 0; i--) {
+      if (contextScopes[i].containsKey(name)) return contextScopes[i][name];
+    }
+    throw 'Context variable not found: $name';
   }
 
   bool checkReactive(String name) {
