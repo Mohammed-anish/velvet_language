@@ -8,10 +8,12 @@ import 'package:velvet_cmp/runtime/runtime.dart';
 import 'package:path/path.dart' as p;
 import 'package:velvet_cmp/bindings/crypto/crypto_registry.dart';
 import 'package:crypto/crypto.dart';
+import 'package:velvet_cmp/runtime/ffi_bridge.dart';
 
 class OuterFunctionRegistry {
   static void register() {
     CryptoRegistry.register();
+    FFIBridgeRegistry.register();
     
     Runtime.bindPrimitive(md5.runtimeType, 'Hash');
     Runtime.bindPrimitive(sha1.runtimeType, 'Hash');

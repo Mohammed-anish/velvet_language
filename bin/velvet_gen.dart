@@ -4,8 +4,12 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 
 void main(List<String> args) {
+  generateBindings(args);
+}
+
+void generateBindings(List<String> args) {
   if (args.isEmpty) {
-    print('Usage: dart run bin/velvet_gen.dart <file_or_dir> [outDir]');
+    print('Usage: velvet bind <file_or_dir> [outDir]');
     exit(1);
   }
 

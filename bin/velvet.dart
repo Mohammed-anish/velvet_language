@@ -6,12 +6,18 @@ import 'package:velvet_cmp/parser/ast_classes.dart';
 import 'package:velvet_cmp/parser/parser.dart';
 
 import 'package:velvet_cmp/runtime/runtime.dart';
+import 'velvet_gen.dart';
 
 bool isJsBuild = identical(1, 1.0);
 
 void main(List<String> args) async {
   if (args.isEmpty) {
-    print('Usage: velvet <script.velv>');
+    print('Usage: velvet <script.velv> OR velvet bind <file_or_dir>');
+    return;
+  }
+  
+  if (args[0] == 'bind') {
+    generateBindings(args.sublist(1));
     return;
   }
   if (args.length > 1) {

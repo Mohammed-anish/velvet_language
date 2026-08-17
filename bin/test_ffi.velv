@@ -1,0 +1,16 @@
+import "ffi.velv"
+
+fn main() {
+  print("Loading C library...")
+  FFI.load("bin/libtest.dylib", "testlib")
+  
+  print("Calling double_num(21) from C:")
+  auto result = FFI.invokeInt("testlib", "double_num", 21)
+  print(result)
+
+  print("Calling greet('Velvet') from C:")
+  auto message = FFI.invokeString("testlib", "greet", "Velvet")
+  print(message)
+}
+
+main()

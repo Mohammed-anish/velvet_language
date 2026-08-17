@@ -1,0 +1,6 @@
+class FFI {
+    static outer fn load(path, libName)
+    static outer fn invokeVoid(libName, funcName)
+    static outer fn invokeInt(libName, funcName, arg)
+    static outer fn invokeString(libName, funcName, arg)
+}
