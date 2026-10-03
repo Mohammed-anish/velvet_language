@@ -1,7 +1,19 @@
 import "vml.velv"
 auto source = '@document(lang="en") { @h1 { Hello World } }'
 auto parsed = VML.parse(source)
-print(parsed)
 
-auto rendered = VML.render(source)
-print(rendered)
+// Get the root element
+auto documentNode = parsed.nodes[0]
+print("Tag Name: " + documentNode.tagName)
+print("Language Attribute: " + documentNode.getAttribute("lang"))
+
+// Querying elements
+auto h1Node = documentNode.querySelector("h1")
+print("H1 Element HTML: " + h1Node.toHTML())
+
+// Iterating over children
+auto children = documentNode.children
+print("First child is: " + children[0].tagName)
+
+auto htmlStr = VML.toHTML(source)
+print("Full HTML: " + htmlStr)

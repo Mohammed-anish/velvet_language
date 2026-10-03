@@ -1,4 +1,24 @@
 class VML {
     static outer fn parse(source)
-    static outer fn render(source)
+    static outer fn toHTML(source)
+}
+
+class VmlDocument {
+    outer fn toHTML()
+    outer fn nodes()
+}
+
+class VmlElement {
+    outer fn querySelector(tag)
+    outer fn querySelectorAll(tag)
+    outer fn getAttribute(name)
+    outer fn toHTML()
+    outer fn tagName()
+    outer fn attributes()
+    outer fn children()
+}
+
+class VmlText {
+    outer fn text()
+    outer fn toHTML()
 }

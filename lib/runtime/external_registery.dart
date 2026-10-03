@@ -808,6 +808,33 @@ class OuterFunctionRegistry {
       });
     });
 
+    Runtime.bindPrimitive(VmlElement, 'VmlElement');
+    Runtime.bindPrimitiveTypeCheck((obj) => obj is VmlElement, 'VmlElement');
+    Runtime.bindPrimitive(VmlText, 'VmlText');
+    Runtime.bindPrimitiveTypeCheck((obj) => obj is VmlText, 'VmlText');
+    Runtime.bindPrimitive(VmlDocument, 'VmlDocument');
+    Runtime.bindPrimitiveTypeCheck((obj) => obj is VmlDocument, 'VmlDocument');
+
+    Runtime.register("VmlText", (klass) {
+      klass.getter('text', (args) => (args[0] as VmlText).text);
+      klass.define('toHTML', (args) => (args[0] as VmlText).toString());
+    });
+
+    Runtime.register("VmlElement", (klass) {
+      klass.getter('tagName', (args) => (args[0] as VmlElement).tagName);
+      klass.getter('attributes', (args) => (args[0] as VmlElement).attributes);
+      klass.getter('children', (args) => (args[0] as VmlElement).children);
+      klass.define('querySelector', (args) => (args[0] as VmlElement).querySelector(args[1] as String));
+      klass.define('querySelectorAll', (args) => (args[0] as VmlElement).querySelectorAll(args[1] as String));
+      klass.define('getAttribute', (args) => (args[0] as VmlElement).attributes[args[1] as String]);
+      klass.define('toHTML', (args) => (args[0] as VmlElement).toString());
+    });
+
+    Runtime.register("VmlDocument", (klass) {
+      klass.getter('nodes', (args) => (args[0] as VmlDocument).nodes);
+      klass.define('toHTML', (args) => (args[0] as VmlDocument).toString());
+    });
+
     Runtime.register("VML", (klass) {
       klass.defineStatic('parse', (args) {
         var source = args[0] as String;
@@ -825,25 +852,9 @@ class OuterFunctionRegistry {
           }
         }
         
-        var dom = VmlDocument.fromAst(markupNodes);
-        
-        Map<String, dynamic> convertNode(VmlNode node) {
-           if (node is VmlText) {
-              return {"type": "text", "value": node.text};
-           } else if (node is VmlElement) {
-              return {
-                 "type": "element",
-                 "tag": node.tagName,
-                 "attributes": node.attributes,
-                 "children": node.children.map(convertNode).toList(),
-              };
-           }
-           return {};
-        }
-
-        return dom.nodes.map(convertNode).toList();
+        return VmlDocument.fromAst(markupNodes);
       });
-      klass.defineStatic('render', (args) {
+      klass.defineStatic('toHTML', (args) {
         var source = args[0] as String;
         var tokenizer = Tokenizer(source);
         tokenizer.tokenize();
