@@ -396,3 +396,26 @@ class NullNode extends Node {
   @override
   String toString() => 'NullNode()';
 }
+
+class MarkupNode extends Node {
+  final String name;
+  final Map<String, Node> attributes;
+  final List<Node> children;
+
+  MarkupNode({
+    required this.name,
+    required this.attributes,
+    required this.children,
+  });
+
+  @override
+  String toString() => 'MarkupNode(name: $name, attributes: $attributes, children: $children)';
+}
+
+class MarkupTextNode extends Node {
+  final String text;
+  MarkupTextNode(this.text);
+
+  @override
+  String toString() => 'MarkupTextNode(text: "$text")';
+}

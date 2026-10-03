@@ -78,6 +78,9 @@ class Tokenizer {
           case '.':
             addToken(TType.dot, null, startLine, startColumn);
             break;
+          case '@':
+            addToken(TType.at, null, startLine, startColumn);
+            break;
 
           case ',':
             addToken(TType.comma, null, startLine, startColumn);

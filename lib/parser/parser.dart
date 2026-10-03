@@ -52,7 +52,12 @@ class Parser extends CoreParser with BineryOperations {
     Node? stmt;
 
     try {
-      if (match(TType.actions_)) {
+      if (match(TType.at)) {
+        if (sourceName != null && !sourceName!.endsWith('.vml')) {
+          throw Exception("Markup language (.vml) cannot be used directly in regular scripts.");
+        }
+        stmt = parseMarkup();
+      } else if (match(TType.actions_)) {
         parseActionsBlock();
         return null;
       } else if (match(TType.requiresContext_)) {
@@ -787,6 +792,76 @@ class Parser extends CoreParser with BineryOperations {
 
     throw Exception(
         "Unexpected token in expression: ${token.type} : ${token.line}");
+  }
+
+  Node parseMarkup() {
+    int startLine = current().line;
+    int startColumn = current().column;
+    eat(TType.at);
+    Token? name = eat(TType.identifier, exeption: "Expected markup tag name after '@'");
+
+    Map<String, Node> attributes = {};
+    if (match(TType.lParen)) {
+      eat(TType.lParen);
+      while (!match(TType.rParen) && !isEof()) {
+        eatNewLines();
+        if (match(TType.rParen)) break;
+        Token? attrName = eat(TType.identifier);
+        eat(TType.assign);
+        Node attrValue = expression();
+        attributes[attrName!.value] = attrValue;
+        eatNewLines();
+        if (match(TType.comma)) {
+          eat(TType.comma);
+        }
+      }
+      eat(TType.rParen);
+    }
+
+    List<Node> children = [];
+    eat(TType.lBrace);
+    children = parseMarkupChildren();
+    eat(TType.rBrace);
+
+    return recordPos(MarkupNode(name: name!.value, attributes: attributes, children: children), startLine, startColumn);
+  }
+
+  List<Node> parseMarkupChildren() {
+    List<Node> children = [];
+    StringBuffer textBuffer = StringBuffer();
+
+    void flushText() {
+      if (textBuffer.isNotEmpty) {
+        String text = textBuffer.toString().trim();
+        if (text.isNotEmpty) {
+          children.add(MarkupTextNode(text));
+        }
+        textBuffer.clear();
+      }
+    }
+
+    while (!match(TType.rBrace) && !isEof()) {
+      if (match(TType.at)) {
+        flushText();
+        children.add(parseMarkup());
+      } else {
+        if (match(TType.newLine)) {
+          textBuffer.write(' ');
+          advance();
+        } else {
+          Token t = current();
+          String val = t.value;
+          if (t.type == TType.string) {
+            val = '"$val"';
+          }
+          textBuffer.write(val);
+          textBuffer.write(' ');
+          advance();
+        }
+      }
+    }
+    flushText();
+    return children;
   }
 
   Node classInstanciate() {

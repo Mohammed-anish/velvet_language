@@ -85,6 +85,7 @@ enum TType {
   colon,
   semicolon,
   dot,
+  at, // @
 
   // Others
   comment,

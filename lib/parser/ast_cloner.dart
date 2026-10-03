@@ -172,6 +172,14 @@ class ASTCloner {
       return BlockNode(statements: cloneList(node.statements));
     } else if (node is CallableBlockNode) {
       return CallableBlockNode(statements: cloneList(node.statements));
+    } else if (node is MarkupNode) {
+      return MarkupNode(
+        name: node.name,
+        attributes: node.attributes.map((k, v) => MapEntry(k, clone(v))),
+        children: cloneList(node.children),
+      );
+    } else if (node is MarkupTextNode) {
+      return MarkupTextNode(node.text);
     }
 
     // Default: return the same node if we don't know how to clone it
