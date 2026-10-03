@@ -1,6 +1,8 @@
 abstract class Node {
   int line = -1;
   int column = -1;
+  int endLine = -1;
+  int endColumn = -1;
 }
 
 class BineryNode extends Node {
@@ -346,10 +348,23 @@ class BlockNode extends Node {
   String toString() => 'BlockNode(statements: $statements)';
 }
 
+class CallableBlockNode extends Node {
+  final List<Node> statements;
+  CallableBlockNode({required this.statements});
+
+  @override
+  String toString() => 'CallableBlockNode(statements: $statements)';
+}
+
 class RequiresContextNode extends Node {
   final List<String> variables;
   RequiresContextNode({required this.variables});
 
   @override
   String toString() => 'RequiresContextNode(variables: $variables)';
+}
+
+class NullNode extends Node {
+  @override
+  String toString() => 'NullNode()';
 }

@@ -6,7 +6,8 @@ import 'package:velvet_cmp/parser/core_parser.dart';
 import 'package:velvet_cmp/parser/action_registry.dart';
 
 class Parser extends CoreParser with BineryOperations {
-  Parser(super.tokenizer);
+  final String? sourceName;
+  Parser(super.tokenizer, {this.sourceName});
   @override
   Programe parse() {
     final List<Node> body = [];
@@ -19,6 +20,26 @@ class Parser extends CoreParser with BineryOperations {
         body.add(statement);
       }
     }
+    if (errors.isNotEmpty) {
+      final err = errors.first;
+      final file = sourceName ?? '<script>';
+      final sourceLines = tokenizer.source.split('\n');
+
+      var buffer = StringBuffer();
+      buffer.writeln('Syntax Error in $file:${err.line}:${err.column}');
+      buffer.writeln('');
+      // Show the offending source line with line number
+      if (err.line > 0 && err.line <= sourceLines.length) {
+        final lineContent = sourceLines[err.line - 1];
+        final lineNum = '${err.line}'.padLeft(4);
+        buffer.writeln('$lineNum | ${lineContent.trimRight()}');
+        // Caret pointer
+        final caretPad = ' ' * (lineNum.length + 3 + (err.column > 0 ? err.column - 1 : 0));
+        buffer.writeln('$caretPad^');
+      }
+      buffer.write(err.message);
+      throw Exception(buffer.toString());
+    }
     var programe = Programe(body: body);
     // print(programe);
     return programe;
@@ -29,62 +50,102 @@ class Parser extends CoreParser with BineryOperations {
     int startColumn = current().column;
     Node? stmt;
 
-    if (match(TType.actions_)) {
-      parseActionsBlock();
-      return null;
-    } else if (match(TType.requiresContext_)) {
-      stmt = parseRequiresContext();
-    } else if (match(TType.identifier) && ActionRegistry().get(current().value) != null && peek().type != TType.assign) {
-      stmt = parseActionInvocation(ActionRegistry().get(current().value)!);
-    } else if (match(TType.context_) || (anyMatch([TType.auto, TType.boolean, TType.identifier]) &&
-        matchNext(TType.identifier))) {
-      stmt = parseVariableDecl();
-    } else if (match(TType.import_)) {
-      stmt = parseImport();
-    } else if (match(TType.if_)) {
-      stmt = parseIfCondition();
-    } else if (match(TType.while_)) {
-      stmt = parseWhileStatement();
-    } else if (match(TType.for_)) {
-      stmt = parseForStatement();
-    } else if (match(TType.fn) || match(TType.asyncKw)) {
-      stmt = parseFunction();
-    } else if (match(TType.return_)) {
-      stmt = parseReturnStatement();
-    } else if (match(TType.watch)) {
-      stmt = parseWatchStatement();
-    } else if (match(TType.identifier) && matchNext(TType.assign)) {
-      stmt = parseAssignStatement();
-    } else if (match(TType.loop)) {
-      stmt = parseLoopStatement();
-    } else if (match(TType.try_)) {
-      stmt = parseTryStatement();
-    } else if (match(TType.throw_)) {
-      stmt = parseThrowStatement();
-    } else if (match(TType.class_)) {
-      stmt = classDeclaration();
-    } else if (match(TType.state_)) {
-      stmt = parseStateDeclration();
-    } else if (match(TType.new_)) {
-      stmt = classInstanciate();
-    } else {
-      if (!match(TType.newLine) && !match(TType.eof)) {
-        stmt = ExpressionStatement(expression());
-      } else if (match(TType.newLine)) {
-        eatNewLines();
+    try {
+      if (match(TType.actions_)) {
+        parseActionsBlock();
         return null;
-      } else if (match(TType.eof)) {
-        return null;
+      } else if (match(TType.requiresContext_)) {
+        stmt = parseRequiresContext();
+      } else if (match(TType.identifier) &&
+          ActionRegistry().get(current().value) != null &&
+          peek().type != TType.assign) {
+        stmt = parseActionInvocation(ActionRegistry().get(current().value)!);
+      } else if (match(TType.context_) ||
+          (anyMatch([TType.auto, TType.boolean, TType.identifier]) &&
+              matchNext(TType.identifier))) {
+        stmt = parseVariableDecl();
+      } else if (match(TType.import_)) {
+        stmt = parseImport();
+      } else if (match(TType.if_)) {
+        stmt = parseIfCondition();
+      } else if (match(TType.while_)) {
+        stmt = parseWhileStatement();
+      } else if (match(TType.for_)) {
+        stmt = parseForStatement();
+      } else if (match(TType.fn) || match(TType.asyncKw)) {
+        stmt = parseFunction();
+      } else if (match(TType.return_)) {
+        stmt = parseReturnStatement();
+      } else if (match(TType.watch)) {
+        stmt = parseWatchStatement();
+      } else if (match(TType.identifier) && matchNext(TType.assign)) {
+        stmt = parseAssignStatement();
+      } else if (match(TType.loop)) {
+        stmt = parseLoopStatement();
+      } else if (match(TType.try_)) {
+        stmt = parseTryStatement();
+      } else if (match(TType.throw_)) {
+        stmt = parseThrowStatement();
+      } else if (match(TType.class_)) {
+        stmt = classDeclaration();
+      } else if (match(TType.state_)) {
+        stmt = parseStateDeclration();
+      } else if (match(TType.new_)) {
+        stmt = classInstanciate();
+      } else {
+        if (!match(TType.newLine) && !match(TType.eof)) {
+          stmt = ExpressionStatement(expression());
+        } else if (match(TType.newLine)) {
+          eatNewLines();
+          return null;
+        } else if (match(TType.eof)) {
+          return null;
+        } else {
+          throw Exception('Unsupported token: ${current().type}');
+        }
       }
+    } catch (e) {
+      errors.add(ParserError(e.toString(), current().line, current().column));
+      _synchronize();
+      return null;
     }
 
     if (stmt != null) {
-      if (stmt.line == -1) stmt.line = startLine;
-      if (stmt.column == -1) stmt.column = startColumn;
-      return stmt;
+      if (i > 0) {
+        Token prev = previous();
+        if (prev.line == current().line &&
+            !match(TType.newLine) &&
+            !match(TType.eof) &&
+            !match(TType.rBrace)) {
+          throw Exception(
+              'Syntax Error: Unexpected token "${current().value}" after statement on line ${current().line}. Did you forget a newline?');
+        }
+      }
+      return recordPos(stmt, startLine, startColumn);
     }
+    return null;
+  }
 
-    throw 'Unsupported: ${current().type}';
+  void _synchronize() {
+    advance();
+    while (!isEof()) {
+      if (previous().type == TType.newLine ||
+          previous().type == TType.semicolon) return;
+
+      switch (current().type) {
+        case TType.class_:
+        case TType.fn:
+        case TType.auto:
+        case TType.for_:
+        case TType.if_:
+        case TType.while_:
+        case TType.return_:
+        case TType.import_:
+          return;
+        default:
+          advance();
+      }
+    }
   }
 
   void parseActionsBlock() {
@@ -105,9 +166,10 @@ class Parser extends CoreParser with BineryOperations {
           Token? paramNameToken = eat(TType.identifier);
           eat(TType.colon);
           Token? paramTypeToken = eat(TType.identifier);
-          
+
           if (paramNameToken != null && paramTypeToken != null) {
-            parameters.add(ActionParameter(paramNameToken.value, paramTypeToken.value));
+            parameters.add(
+                ActionParameter(paramNameToken.value, paramTypeToken.value));
           }
 
           if (match(TType.comma)) {
@@ -131,7 +193,8 @@ class Parser extends CoreParser with BineryOperations {
     eat(TType.requiresContext_);
     List<String> variables = [];
     do {
-      Token? varName = eat(TType.identifier, exeption: 'Expected variable name for requiresContext');
+      Token? varName = eat(TType.identifier,
+          exeption: 'Expected variable name for requiresContext');
       if (varName != null) {
         variables.add(varName.value);
       }
@@ -165,7 +228,7 @@ class Parser extends CoreParser with BineryOperations {
       } else if (param.syntaxType == 'expression') {
         bindings[param.name] = expression();
       } else if (param.syntaxType == 'block') {
-        bindings[param.name] = BlockNode(statements: parseBlock());
+        bindings[param.name] = CallableBlockNode(statements: parseBlock());
       } else {
         throw 'Unsupported action parameter type: ${param.syntaxType}';
       }
@@ -203,7 +266,7 @@ class Parser extends CoreParser with BineryOperations {
     eat(TType.state_);
     Token? name = eat(TType.identifier);
     eat(TType.lBrace);
-    
+
     List<String> values = [];
     while (!match(TType.rBrace) && !isEof()) {
       eatNewLines();
@@ -214,7 +277,7 @@ class Parser extends CoreParser with BineryOperations {
       }
       eatNewLines();
     }
-    
+
     eat(TType.rBrace);
     return StateDeclration(name: name!.value, values: values);
   }
@@ -227,16 +290,20 @@ class Parser extends CoreParser with BineryOperations {
         if (anyMatch([TType.auto, TType.boolean, TType.identifier]) &&
             matchNext(TType.identifier)) {
           return parseVariableDecl(isField: true, isStatic: true);
-        } else if ((match(TType.outer) && (matchNext(TType.fn) || matchNext(TType.asyncKw))) ||
-            match(TType.fn) || match(TType.asyncKw)) {
+        } else if ((match(TType.outer) &&
+                (matchNext(TType.fn) || matchNext(TType.asyncKw))) ||
+            match(TType.fn) ||
+            match(TType.asyncKw)) {
           return parseFunction(isStatic: true);
         }
       } else {
         if (anyMatch([TType.auto, TType.boolean, TType.identifier]) &&
             matchNext(TType.identifier)) {
           return parseVariableDecl(isField: true);
-        } else if ((match(TType.outer) && (matchNext(TType.fn) || matchNext(TType.asyncKw))) ||
-            match(TType.fn) || match(TType.asyncKw)) {
+        } else if ((match(TType.outer) &&
+                (matchNext(TType.fn) || matchNext(TType.asyncKw))) ||
+            match(TType.fn) ||
+            match(TType.asyncKw)) {
           return parseFunction();
         }
       }
@@ -246,7 +313,7 @@ class Parser extends CoreParser with BineryOperations {
     }
 
     List<Node> body = [];
-    while (!match(TType.rBrace)) {
+    while (!match(TType.rBrace) && !isEof()) {
       eatNewLines();
       if (match(TType.rBrace)) break; // in case newline was right before }
 
@@ -494,14 +561,16 @@ class Parser extends CoreParser with BineryOperations {
     eat(TType.rParen);
     eatNewLines();
 
-    return FunctionCall(callee: node, arguments: arguments)..line = startLine..column = startColumn;
+    return FunctionCall(callee: node, arguments: arguments)
+      ..line = startLine
+      ..column = startColumn;
   }
 
   List<Node> parseBlock() {
     List<Node> body = [];
     eat(TType.lBrace);
 
-    while (!match(TType.rBrace)) {
+    while (!match(TType.rBrace) && !isEof()) {
       Node? statement = parseStatement();
       if (statement != null) body.add(statement);
     }
@@ -521,6 +590,8 @@ class Parser extends CoreParser with BineryOperations {
 
   @override
   Node call() {
+    int startLine = current().line;
+    int startColumn = current().column;
     Node expr = primary();
 
     while (true) {
@@ -528,21 +599,23 @@ class Parser extends CoreParser with BineryOperations {
         advance();
         Token? property = eat(TType.identifier,
             exeption: "Expected property name after '.'.");
-        expr = MemberAccess(object: expr, property: property!.value);
+        expr = recordPos(MemberAccess(object: expr, property: property!.value),
+            startLine, startColumn);
       } else if (match(TType.lBracket)) {
         advance();
         Node index = expression();
         eat(TType.rBracket, exeption: "Expect ']' after index.");
-        expr = IndexAccessNode(target: expr, index: index);
+        expr = recordPos(IndexAccessNode(target: expr, index: index), startLine,
+            startColumn);
       } else if (match(TType.lParen)) {
-        expr = parseFunctionCall(expr);
+        expr = recordPos(parseFunctionCall(expr), startLine, startColumn);
       } else {
         break;
       }
     }
 
     if (expr is IdentifierNode) {
-      return VariableNode(name: expr.name);
+      return recordPos(VariableNode(name: expr.name), startLine, startColumn);
     }
 
     return expr;
@@ -564,30 +637,36 @@ class Parser extends CoreParser with BineryOperations {
 
   @override
   Node primary() {
+    int startLine = current().line;
+    int startColumn = current().column;
     Token token = current();
+    Node? node;
 
     if (match(TType.new_)) {
-      return classInstanciate();
+      node = classInstanciate();
     } else if (match(TType.string)) {
       advance();
-      return StringNode(token.value);
+      node = StringNode(token.value);
     } else if (match(TType.number)) {
       advance();
-      return Number(value: num.parse(token.value));
+      node = Number(value: num.parse(token.value));
     } else if (match(TType.false_) || match(TType.true_)) {
       advance();
-      return BooleanNode(bool.parse(token.value));
+      node = BooleanNode(bool.parse(token.value));
+    } else if (match(TType.nullLiteral)) {
+      advance();
+      node = NullNode();
     } else if (match(TType.identifier)) {
       advance();
-      return IdentifierNode(token.value);
+      node = IdentifierNode(token.value);
     } else if (match(TType.this_)) {
       advance();
-      return ThisNode();
+      node = ThisNode();
     } else if (match(TType.lParen)) {
       advance();
       Node expr = expression();
       eat(TType.rParen, exeption: "Expect ')' after expression.");
-      return expr;
+      node = expr;
     } else if (match(TType.lBracket)) {
       advance();
       List<Node> elements = [];
@@ -602,7 +681,7 @@ class Parser extends CoreParser with BineryOperations {
         } while (true);
       }
       eat(TType.rBracket, exeption: "Expect ']' after array elements.");
-      return ArrayNode(elements: elements);
+      node = ArrayNode(elements: elements);
     } else if (match(TType.lBrace)) {
       advance();
       Map<Node, Node> entries = {};
@@ -620,7 +699,11 @@ class Parser extends CoreParser with BineryOperations {
         } while (true);
       }
       eat(TType.rBrace, exeption: "Expect '}' after map entries.");
-      return MapNode(entries: entries);
+      node = MapNode(entries: entries);
+    }
+
+    if (node != null) {
+      return recordPos(node, startLine, startColumn);
     }
 
     throw Exception(

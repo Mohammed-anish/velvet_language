@@ -68,7 +68,12 @@ class KlassInstance {
   }
 
   @override
-  String toString() => 'Instance of $name';
+  String toString() {
+    if (fields.containsKey('_nativeData')) {
+      return fields['_nativeData'].toString();
+    }
+    return 'Instance of $name';
+  }
 }
 
 class StaticField extends Node {

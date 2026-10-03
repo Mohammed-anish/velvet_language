@@ -1,0 +1,171 @@
+import "math.velv"
+import "io.velv"
+import "json.velv"
+
+/// A simple built-in Artificial Intelligence engine.
+/// 
+/// Provides basic algorithms for K-Nearest Neighbors prediction,
+/// K-Means Clustering, Linear Regression, and Recommendation.
+class SimpleAI {
+    auto _inputs = []
+    auto _outputs = []
+
+    fn init() {}
+
+    // Persistence: Save and Load the Brain
+    async fn save(filepath) {
+        auto map = {"inputs": this._inputs, "outputs": this._outputs}
+        auto j = new JSON()
+        auto jsonString = j.stringify(map)
+        auto file = new File(filepath)
+        await file.writeAsString(jsonString)
+    }
+
+    async fn load(filepath) {
+        auto file = new File(filepath)
+        auto jsonString = await file.readAsString()
+        auto j = new JSON()
+        auto map = j.parse(jsonString)
+        this._inputs = map.get("inputs")
+        this._outputs = map.get("outputs")
+    }
+
+    // 1. Prediction (K-Nearest Neighbors)
+    fn learn(inputs, outputs) {
+        this._inputs = inputs
+        this._outputs = outputs
+    }
+
+    // 4. Trend Prediction (Linear Regression - Least Squares)
+    // yValues = [100, 200, 300, 400]
+    // futureX = 4 (index for month 5)
+    fn predictTrend(yValues, futureX) {
+        if (yValues.length() < 2) {
+            throw "Need at least 2 data points for trend prediction!"
+        }
+        
+        auto n = yValues.length()
+        auto sumX = 0
+        auto sumY = 0
+        auto sumXY = 0
+        auto sumXX = 0
+        
+        auto i = 0
+        while (i < n) {
+            auto x = i
+            auto y = yValues.get(i)
+            sumX = sumX + x
+            sumY = sumY + y
+            sumXY = sumXY + (x * y)
+            sumXX = sumXX + (x * x)
+            i = i + 1
+        }
+        
+        auto denominator = (n * sumXX) - (sumX * sumX)
+        if (denominator == 0) {
+            return yValues.get(n - 1)
+        }
+        
+        auto m = ((n * sumXY) - (sumX * sumY)) / denominator
+        auto b = (sumY - (m * sumX)) / n
+        
+        return (m * futureX) + b
+    }
+
+    fn predict(inputData) {
+        if (this._inputs.length() == 0) {
+            throw "SimpleAI has not learned anything yet!"
+        }
+        
+        auto bestDistance = -1
+        auto bestIndex = 0
+        
+        auto i = 0
+        while (i < this._inputs.length()) {
+            auto known = this._inputs.get(i)
+            auto dist = this._euclideanDistance(inputData, known)
+            if (bestDistance == -1 || dist < bestDistance) {
+                bestDistance = dist
+                bestIndex = i
+            }
+            i = i + 1
+        }
+        
+        return this._outputs.get(bestIndex)
+    }
+
+    // 2. Auto-Grouping (K-Means Clustering - 1 Iteration approximation)
+    fn group(dataList, k) {
+        if (dataList.length() == 0) {
+            return []
+        }
+        
+        // Initialize k centroids
+        auto centroids = []
+        auto i = 0
+        while (i < k && i < dataList.length()) {
+            centroids.add(dataList.get(i))
+            i = i + 1
+        }
+        
+        // Assign each data point to closest centroid
+        auto groups = []
+        auto j = 0
+        while (j < k) {
+            groups.add([])
+            j = j + 1
+        }
+        
+        auto d = 0
+        while (d < dataList.length()) {
+            auto point = dataList.get(d)
+            auto bestDist = -1
+            auto bestC = 0
+            
+            auto c = 0
+            while (c < centroids.length()) {
+                auto dist = this._euclideanDistance(point, centroids.get(c))
+                if (bestDist == -1 || dist < bestDist) {
+                    bestDist = dist
+                    bestC = c
+                }
+                c = c + 1
+            }
+            groups.get(bestC).add(point)
+            d = d + 1
+        }
+        
+        return groups
+    }
+
+    // 3. Recommendation (Cosine Similarity / Euclidean approximation)
+    fn recommend(userPreferences, allAvailableItems) {
+        auto bestScore = -1
+        auto bestIndex = 0
+        
+        auto i = 0
+        while (i < allAvailableItems.length()) {
+            auto item = allAvailableItems.get(i)
+            auto dist = this._euclideanDistance(userPreferences, item)
+            
+            if (bestScore == -1 || dist < bestScore) {
+                bestScore = dist
+                bestIndex = i
+            }
+            i = i + 1
+        }
+        return allAvailableItems.get(bestIndex)
+    }
+
+    // Helper Math Function
+    fn _euclideanDistance(a, b) {
+        auto sum = 0
+        auto j = 0
+        while (j < a.length()) {
+            auto diff = a.get(j) - b.get(j)
+            sum = sum + (diff * diff)
+            j = j + 1
+        }
+        return Math.sqrt(sum)
+    }
+}

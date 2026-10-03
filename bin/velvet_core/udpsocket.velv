@@ -1,3 +1,6 @@
+/// A User Datagram Protocol (UDP) socket.
+/// 
+/// UDPSocket allows you to send and receive datagrams connectionlessly over a network.
 class UDPSocket {
   static outer async fn bind(host, port)
   outer async fn send(data, host, port)

@@ -1,0 +1,3 @@
+class Timer {
+    static outer fn sleep(milliseconds)
+}

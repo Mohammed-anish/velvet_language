@@ -1,20 +1,48 @@
+/// The root class of the Velvet class hierarchy.
+/// Every class in Velvet inherits from Object.
 class Object{
     outer fn str string()
     outer fn num hash()
 }
 
+/// A dynamic, ordered collection of items.
+/// 
+/// Lists are 0-indexed and can grow or shrink in size automatically.
 class List {
     outer fn add(item)
     outer fn get(index)
     outer fn set(index, value)
     outer fn length()
+    outer fn remove(item)
+    outer fn removeAt(index)
+    outer fn contains(item)
+    outer fn indexOf(item)
+    outer fn clear()
 }
 
+/// A collection of key/value pairs.
+/// Keys must be unique, and retrieving a value by its key is generally fast.
 class Map {
     outer fn put(key, value)
     outer fn get(key)
+    outer fn remove(key)
+    outer fn containsKey(key)
+    outer fn keys()
+    outer fn values()
+    outer fn clear()
 }
 
+/// Represents an error that occurred during runtime.
+class Error {
+    auto message = ""
+    fn init(message) {
+        this.message = message
+    }
+}
+
+/// A sequence of UTF-16 code units representing text.
+/// 
+/// Strings are immutable in Velvet.
 class String {
     outer fn toUpperCase()
     outer fn toLowerCase()
@@ -29,6 +57,7 @@ class String {
     outer fn isEmpty()
 }
 
+/// An integer or floating-point number.
 class Number {
     outer fn toString()
     outer fn toInt()
@@ -37,4 +66,9 @@ class Number {
     outer fn floor()
     outer fn ceil()
     outer fn abs()
+}
+
+/// Represents a truth value: either true or false.
+class Boolean {
+    outer fn toString()
 }

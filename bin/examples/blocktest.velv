@@ -1,0 +1,10 @@
+actions {
+    testAction(body: block) {
+        auto runIt = body
+        runIt()
+    }
+}
+
+testAction {
+    print("Action block executed successfully!")
+}

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:velvet_cmp/core/types.dart';
 
 class Tokenizer {
@@ -6,6 +8,7 @@ class Tokenizer {
   int line = 1;
   int column = 1;
   final List<Token> tokens = [];
+  final List<Token> comments = [];
 
   Tokenizer(this.source);
 
@@ -22,128 +25,131 @@ class Tokenizer {
     index++;
   }
 
-  void addToken(TType type, [String? value]) {
-    tokens.add(Token(type, value ?? current, line, column));
+  void addToken(TType type, [String? value, int? tokenLine, int? tokenColumn]) {
+    tokens.add(Token(type, value ?? current, tokenLine ?? line, tokenColumn ?? column));
   }
 
   int parenDepth = 0;
 
   void tokenize() {
     while (!isAtEnd) {
-      final start = index;
       final char = current;
+      final startLine = line;
+      final startColumn = column;
 
       if (_isWhitespace(char)) {
         if (char == '\n' && parenDepth == 0) {
-          addToken(TType.newLine, '\\n');
+          addToken(TType.newLine, '\\n', startLine, startColumn);
         }
         advance();
       } else if (_isAlpha(char)) {
-        _identifierOrKeyword();
+        _identifierOrKeyword(startLine, startColumn);
       } else if (_isDigit(char)) {
-        _number();
+        _number(startLine, startColumn);
       } else if (char == '"' || char == "'") {
-        _string(char);
+        _string(char, startLine, startColumn);
       } else if (char == '}' && interpolationDepth > 0) {
-        addToken(TType.rParen, ')');
-        addToken(TType.plus, '+');
+        addToken(TType.rParen, ')', startLine, startColumn);
+        addToken(TType.plus, '+', startLine, startColumn);
         interpolationDepth--;
-        _string(quoteStack.removeLast(), isResume: true);
+        _string(quoteStack.removeLast(), startLine, startColumn, isResume: true);
       } else {
         switch (char) {
           case '(':
             parenDepth++;
-            addToken(TType.lParen);
+            addToken(TType.lParen, null, startLine, startColumn);
             break;
           case ')':
             if (parenDepth > 0) parenDepth--;
-            addToken(TType.rParen);
+            addToken(TType.rParen, null, startLine, startColumn);
             break;
           case '{':
-            addToken(TType.lBrace);
+            addToken(TType.lBrace, null, startLine, startColumn);
             break;
           case '}':
-            addToken(TType.rBrace);
+            addToken(TType.rBrace, null, startLine, startColumn);
             break;
           case '[':
-            addToken(TType.lBracket);
+            addToken(TType.lBracket, null, startLine, startColumn);
             break;
           case ']':
-            addToken(TType.rBracket);
+            addToken(TType.rBracket, null, startLine, startColumn);
             break;
           case '.':
-            addToken(TType.dot);
+            addToken(TType.dot, null, startLine, startColumn);
             break;
 
           case ',':
-            addToken(TType.comma);
+            addToken(TType.comma, null, startLine, startColumn);
             break;
           case ':':
-            addToken(TType.colon);
+            addToken(TType.colon, null, startLine, startColumn);
             break;
           case ';':
-            addToken(TType.semicolon);
+            addToken(TType.semicolon, null, startLine, startColumn);
             break;
           case '+':
             _match('=')
-                ? addToken(TType.plusAssign, '+=')
-                : addToken(TType.plus);
+                ? addToken(TType.plusAssign, '+=', startLine, startColumn)
+                : addToken(TType.plus, null, startLine, startColumn);
             break;
           case '-':
             if (_match('=')) {
-              addToken(TType.minusAssign, '-=');
+              addToken(TType.minusAssign, '-=', startLine, startColumn);
             } else if (_match('>')) {
-              addToken(TType.arrow, '->');
+              addToken(TType.arrow, '->', startLine, startColumn);
             } else {
-              addToken(TType.minus);
+              addToken(TType.minus, null, startLine, startColumn);
             }
             break;
           case '*':
             _match('=')
-                ? addToken(TType.starAssign, '*=')
-                : addToken(TType.star);
+                ? addToken(TType.starAssign, '*=', startLine, startColumn)
+                : addToken(TType.star, null, startLine, startColumn);
             break;
           case '/':
             if (_match('/')) {
-              _comment();
+              _comment(startLine, startColumn);
             } else if (_match('=')) {
-              addToken(TType.slashAssign, '/=');
+              addToken(TType.slashAssign, '/=', startLine, startColumn);
             } else {
-              addToken(TType.slash);
+              addToken(TType.slash, null, startLine, startColumn);
             }
             break;
           case '=':
             _match('=')
-                ? addToken(TType.doubleEqual, '==')
-                : addToken(TType.assign);
+                ? addToken(TType.doubleEqual, '==', startLine, startColumn)
+                : addToken(TType.assign, null, startLine, startColumn);
             break;
           case '!':
-            _match('=') ? addToken(TType.notEqual, '!=') : addToken(TType.bang);
+            _match('=') ? addToken(TType.notEqual, '!=', startLine, startColumn) : addToken(TType.bang, null, startLine, startColumn);
             break;
           case '>':
             _match('=')
-                ? addToken(TType.greaterEqual, '>=')
-                : addToken(TType.greater);
+                ? addToken(TType.greaterEqual, '>=', startLine, startColumn)
+                : addToken(TType.greater, null, startLine, startColumn);
             break;
           case '<':
             _match('=')
-                ? addToken(TType.lessEqual, '<=')
-                : addToken(TType.less);
+                ? addToken(TType.lessEqual, '<=', startLine, startColumn)
+                : addToken(TType.less, null, startLine, startColumn);
             break;
           case '&':
-            if (_match('&')) addToken(TType.and_, '&&');
+            if (_match('&')) addToken(TType.and_, '&&', startLine, startColumn);
             break;
           case '|':
-            if (_match('|')) addToken(TType.or_, '||');
+            if (_match('|')) addToken(TType.or_, '||', startLine, startColumn);
             break;
           default:
-            print("Unexpected char: $char");
+            // stdout is the LSP transport when the tokenizer runs in the
+            // language server.  Never write diagnostics there.
+            stderr.writeln("Unexpected char: $char");
         }
         advance();
       }
     }
 
-    addToken(TType.eof, '');
+    addToken(TType.eof, '', line, column);
     _stripContinuationNewlines();
   }
 
@@ -231,7 +237,7 @@ class Tokenizer {
     tokens.addAll(filtered);
   }
 
-  void _identifierOrKeyword() {
+  void _identifierOrKeyword(int startLine, int startColumn) {
     final start = index;
     while (!_isAtEndOrInvalid(current)) {
       advance();
@@ -256,6 +262,7 @@ class Tokenizer {
       'reactive': TType.reactive,
       'true': TType.true_,
       'false': TType.false_,
+      'null': TType.nullLiteral,
       'match': TType.match_,
       'switch': TType.switch_,
       'case': TType.case_,
@@ -280,10 +287,10 @@ class Tokenizer {
     };
 
     final type = keywords[text] ?? TType.identifier;
-    addToken(type, text);
+    addToken(type, text, startLine, startColumn);
   }
 
-  void _number() {
+  void _number(int startLine, int startColumn) {
     final start = index;
     while (_isDigit(current)) {
       advance();
@@ -297,15 +304,18 @@ class Tokenizer {
     }
 
     final value = source.substring(start, index);
-    addToken(TType.number, value);
+    addToken(TType.number, value, startLine, startColumn);
   }
 
   int interpolationDepth = 0;
   List<String> quoteStack = [];
 
-  void _string(String quote, {bool isResume = false}) {
+  void _string(String quote, int startLine, int startColumn, {bool isResume = false}) {
+    final stringTokenLine = line;
+    final stringTokenColumn = column;
+
     advance(); // Skip opening quote or }
-    
+
     final start = index;
     bool hasInterpolation = false;
 
@@ -318,12 +328,12 @@ class Tokenizer {
     }
 
     final value = source.substring(start, index);
-    
+
     if (hasInterpolation) {
-       if (!isResume) addToken(TType.lParen, '(');
-       addToken(TType.string, value);
-       addToken(TType.plus, '+');
-       addToken(TType.lParen, '(');
+       if (!isResume) addToken(TType.lParen, '(', startLine, startColumn);
+       addToken(TType.string, value, stringTokenLine, stringTokenColumn);
+       addToken(TType.plus, '+', line, column);
+       addToken(TType.lParen, '(', line, column);
        advance(); // skip $
        advance(); // skip {
        interpolationDepth++;
@@ -332,17 +342,18 @@ class Tokenizer {
     }
 
     advance(); // Skip closing quote
-    addToken(TType.string, value);
+    addToken(TType.string, value, stringTokenLine, stringTokenColumn);
     if (isResume || interpolationDepth > 0 && isResume) {
-       addToken(TType.rParen, ')');
+       addToken(TType.rParen, ')', line, column);
     }
   }
 
-  void _comment() {
+  void _comment(int startLine, int startColumn) {
+    int start = index - 1;
     while (!isAtEnd && current != '\n') {
       advance();
     }
-    // addToken(TType.comment);
+    comments.add(Token(TType.comment, source.substring(start, index), startLine, startColumn));
   }
 
   bool _match(String expected) {

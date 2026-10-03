@@ -1,0 +1,76 @@
+/// A web server that listens for HTTP requests.
+class HttpServer {
+    /// Binds an HTTP server to the specified [host] and [port].
+    static outer async fn bind(host, port)
+
+    /// Waits for the next incoming HTTP request.
+    /// Returns an HttpRequest object.
+    outer async fn accept()
+
+    /// Closes the server.
+    outer async fn close()
+}
+
+/// Represents an incoming HTTP request.
+class HttpRequest {
+    /// The HTTP method (e.g., 'GET', 'POST').
+    outer fn method()
+
+    /// The requested URI as a string.
+    outer fn uri()
+
+    /// The path component of the requested URI.
+    outer fn path()
+
+    /// Gets the URL query parameters as a Map.
+    outer fn query()
+
+    /// Gets the request headers as a Map.
+    outer fn headers()
+
+    /// Gets the IP address of the client making the request.
+    outer fn ip()
+
+    /// Gets the HttpResponse object associated with this request.
+    outer fn response()
+
+    /// Reads the entire request body as a string.
+    outer async fn readAsString()
+
+    /// Reads the entire request body as raw bytes (Buffer).
+    outer async fn readAsBytes()
+
+    /// Parses the request body as JSON and returns a Velvet Map/List.
+    outer async fn parseJson()
+
+    /// Parses the request body as URL-encoded form data and returns a Map.
+    outer async fn parseFormUrlEncoded()
+
+    /// Parses the request body as multipart/form-data.
+    /// Returns a Map where values are either Strings or Maps (for file uploads with 'filename' and 'bytes').
+    outer async fn parseMultipart()
+}
+
+/// Represents an HTTP response sent back to the client.
+class HttpResponse {
+    /// Gets the HTTP status code.
+    outer fn statusCode()
+
+    /// Sets the HTTP status code (e.g., 200, 404).
+    outer fn setStatusCode(code)
+
+    /// Sets an HTTP header.
+    outer fn setHeader(name, value)
+
+    /// Removes an HTTP header.
+    outer fn removeHeader(name)
+
+    /// Writes string data to the response body.
+    outer fn write(data)
+
+    /// Writes raw bytes (Buffer) to the response body.
+    outer fn writeBytes(buffer)
+
+    /// Closes the response, sending the data to the client.
+    outer async fn close()
+}

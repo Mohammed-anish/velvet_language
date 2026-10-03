@@ -147,6 +147,8 @@ class ASTCloner {
       return ThrowNode(expression: clone(node.expression));
     } else if (node is BlockNode) {
       return BlockNode(statements: cloneList(node.statements));
+    } else if (node is CallableBlockNode) {
+      return CallableBlockNode(statements: cloneList(node.statements));
     }
 
     // Default: return the same node if we don't know how to clone it

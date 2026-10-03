@@ -1,253 +1,292 @@
-# Velvet Language Guide (Complete Reference)
+# Velvet Language Guide (A-Z Complete Reference)
 
-Velvet is a dynamically-typed scripting language with native interoperability, built on top of Dart. This document serves as the **complete** reference for Velvet's syntax, core libraries, and capabilities, which you can provide to any AI to write accurate Velvet code.
+Velvet is a fast, dynamically-typed scripting language with native interoperability, built on top of Dart. This guide is the **complete, A-to-Z reference** for Velvet's syntax and capabilities. 
 
-## 1. Basics & Types
+> [!TIP]
+> **Core Libraries:** Velvet also includes a massive built-in Standard Library (e.g., `os`, `io`, `socket`, `json`). Please refer to `Velvet_Core_Documentation.md` for the full A-Z list of all available core classes and methods.
+
+---
+
+## 1. Variables & Data Types
 
 Velvet supports both explicit typing and type-inference via the `auto` keyword. 
 
-### Variables
+### Data Types
+- `String`: Text strings, surrounded by single (`'`) or double (`"`) quotes.
+- `Number`: Integers and floating-point numbers.
+- `boolean`: `true` or `false`.
+- `List`: Arrays of items (e.g., `[1, 2, 3]`).
+- `Map`: Key-value dictionaries (e.g., `{"key": "value"}`).
+
+### Variable Declaration
 ```typescript
 // Explicitly typed
 String msg = 'Hello from Velvet!'
 Number count = 42
-Map config = {"theme": "dark"}
-List names = ['Alice', 'Bob']
 boolean isEnabled = true
+List names = ['Alice', 'Bob']
+Map config = {"theme": "dark"}
 
-// Inferred typing
+// Inferred typing (Recommended)
 auto dynamicVar = 10
+auto active = false
 ```
 
 ### String Interpolation
-Velvet supports standard string interpolation using `${}`.
+You can inject variables directly into strings using `${}`.
 ```typescript
 String myName = "Velvet"
-Number year = 2026
-print("Hello ${myName}, welcome to ${year}!")
+print("Hello ${myName}, welcome!")
 ```
+
+### State (Enums)
+Velvet has a dedicated `state` keyword to define enumerations of possible values.
+```typescript
+state Status {
+    Idle
+    Loading
+    Success
+    Error
+}
+
+auto currentStatus = Status.Loading
+```
+
+---
 
 ## 2. Control Flow
 
 ### If / Else
-Supports standard comparison operators (`==`, `!=`, `<`, `>`, `<=`, `>=`) and logical operators (`&&`, `||`, `!`).
+Standard comparison operators (`==`, `!=`, `<`, `>`, `<=`, `>=`) and logical operators (`&&`, `||`, `!`) are fully supported.
 ```typescript
+auto count = 15
+
 if (count >= 10 && !false) {
     print('Count is high')
+} else if (count == 5) {
+    print('Count is exactly 5')
 } else {
     print('Count is low')
 }
 ```
 
-### Loops (For, While, Loop)
-Velvet provides `for`, `while`, and a special `loop` syntax.
+### Loops (`for`, `while`, `loop`)
+Velvet provides traditional loops, as well as a simplified `loop` syntax.
+
 ```typescript
-// Standard For Loop
+// 1. Standard For Loop
 for (auto i = 0; i < 10; i = i + 1) {
     print(i)
 }
 
-// While Loop
-while (count > 0) {
-    count = count - 1
+// 2. While Loop
+auto x = 5
+while (x > 0) {
+    print(x)
+    x = x - 1
 }
 
-// Special 'loop' syntax: loop (iterations, indexVariableName)
+// 3. Simplified 'loop' syntax: loop (iterations, indexVariableName)
 loop (5, i) {
     print('Iteration: ' + i)
 }
 ```
 
 ### Try / Catch / Throw
-Exceptions can be thrown as expressions and caught.
+You can throw custom strings or objects, and catch them gracefully to prevent crashes.
 ```typescript
 try {
-    throw 'Oops something went wrong!'
+    throw 'Oops, something went wrong!'
 } catch (e) {
-    print('Caught error: ' + e)
+    print('Caught an error: ' + e)
 }
 ```
 
-## 3. Functions
-Functions are declared using the `fn` keyword.
+---
+
+## 4. Functions
+
+Functions are declared using the `fn` keyword. They can accept arguments and return values.
+
 ```typescript
-fn sum(a, b) {
+// Standard function
+fn calculateSum(a, b) {
     return a + b
 }
-auto result = sum(10, 5)
+
+auto result = calculateSum(10, 5)
+print(result) // 15
 ```
 
-## 4. Object-Oriented Programming (Classes)
-Velvet is strictly object-oriented. Classes can have fields, constructors (`init`), instance methods, and static methods.
+---
 
+## 5. Object-Oriented Programming (Classes)
+
+Velvet is strictly object-oriented. Classes can have fields, constructors, instance methods, static methods, and can inherit from other classes!
+
+### Basic Class Syntax
 ```typescript
 class Person {
     String name = ""
+    Number age = 0
 
-    // Constructor is always named 'init'
-    fn init(n) {
+    // Constructor is ALWAYS named 'init'
+    fn init(n, a) {
         this.name = n
+        this.age = a
     }
 
     fn sayHello() {
         print('Hello from ' + this.name)
     }
 
+    // Static methods are called on the class itself
     static fn getSpecies() {
         return 'Human'
     }
 }
 
-// Instantiation using 'new'
-auto obj = new Person('Velvet')
-obj.sayHello()
-
+// Instantiation uses the 'new' keyword
+auto p = new Person('Velvet', 1)
+p.sayHello()
 print(Person.getSpecies())
 ```
 
-## 5. Reactive State (`reactive` & `watch`)
-Velvet supports built-in state reactivity. You can declare a variable as `reactive` and `watch` it for changes. Whenever the variable is updated, the `watch` block automatically re-executes.
+### Class Inheritance (`derives`)
+You can inherit fields and methods from a parent class using the `derives` keyword.
+
+```typescript
+class Employee derives Person {
+    String role = ""
+
+    fn init(n, a, r) {
+        this.name = n
+        this.age = a
+        this.role = r
+    }
+    
+    fn sayRole() {
+        print('I am an ' + this.role)
+    }
+}
+
+auto emp = new Employee('Alice', 25, 'Engineer')
+emp.sayHello() // Inherited from Person!
+emp.sayRole()  // From Employee
+```
+
+---
+
+## 6. Reactive State (`reactive` & `watch`)
+
+Velvet has a powerful built-in reactivity system. You can mark variables as `reactive` and `watch` them. Whenever the variable changes, the `watch` block automatically re-executes!
 
 ```typescript
 reactive auto counter = 0
 
+// This block will run immediately, and then again EVERY time counter changes!
 watch counter {
-    print('Counter changed to: ' + counter)
+    print('The counter is now: ' + counter)
 }
 
-counter = 1 // Automatically triggers the watch block above
+counter = 1 // Automatically triggers the watch block
+counter = 2 // Automatically triggers the watch block
 ```
 
-## 6. Built-in Core Types and Methods
+---
 
-### `Object`
-- `string()`: Converts object to a string.
-- `hash()`: Returns hashcode number.
+## 7. Dynamic Evaluation (`eval`)
 
-### `String`
-- `toUpperCase()`, `toLowerCase()`
-- `length()`
-- `trim()`
-- `split(pattern)`
-- `replace(from, to)`
-- `contains(substring)`
-- `startsWith(prefix)`, `endsWith(suffix)`
-- `substring(start, end)`
-- `isEmpty()`
+Velvet can dynamically evaluate strings containing Velvet code at runtime. `eval` operates within the current local scope, meaning injected variables are accessible after `eval()` executes!
 
-### `Number`
-- `toString()`
-- `toInt()`, `toDouble()`
-- `round()`, `floor()`, `ceil()`, `abs()`
-
-### `List` (Arrays)
-- `add(item)`
-- `get(index)`
-- `set(index, value)`
-- `length()`
-
-*Note: Lists also support bracket indexing: `list[0]`.*
-
-### `Map`
-- `put(key, value)`
-- `get(key)`
-
-*Note: Maps also support bracket indexing: `map['key'] = 'val'`.*
-
-## 7. Built-in System Functions
-- `print(value)`: Prints a value to the standard output.
-- `ofile(path)`: Synchronously reads an entire file at `path` and returns its contents as a String.
-
-## 8. Core Modules (APIs)
-Velvet has several core modules that must be imported to use.
-
-### Importing
-```typescript
-import "bin/velvet_core/object.velv"
-import "bin/velvet_core/io.velv"
-import "bin/velvet_core/json.velv"
-import "bin/velvet_core/os.velv"
-```
-
-### File System (Requires `io.velv`)
-```typescript
-auto file = new File('test_file.txt')
-
-if (!file.exists()) {
-    file.create()
-}
-
-file.writeAsString('Hello')
-file.appendAsString(' World!')
-print(file.readAsString())
-file.delete()
-```
-
-### HTTP Requests (Requires `io.velv`)
-```typescript
-auto http = new Http()
-auto response = http.get('https://api.ipify.org', {})
-print('Status: ' + response['statusCode'])
-print('Response: ' + response['body'])
-```
-
-### JSON Parsing (Requires `json.velv`)
-```typescript
-auto json = new JSON()
-Map myMap = {"name": "Velvet", "year": 2026}
-
-// Stringify
-String jsonStr = json.stringify(myMap)
-
-// Parse
-auto parsedMap = json.parse(jsonStr)
-print(parsedMap['year'])
-```
-
-### Operating System & Process (Requires `os.velv`)
-```typescript
-print(Platform.os())               // e.g. "macos"
-print(Platform.env('PATH'))        // Fetch Environment variable
-
-print(Process.cwd())               // Current working directory
-Process.sleep(1000)                // Sleep for 1 second
-
-// Join and extract paths
-auto joined = Path.join('folder', 'file.txt')
-print(Path.basename(joined))
-```
-
-### Dates and Timers
-```typescript
-auto dt = DateTime.now()
-print(dt.year())
-print(dt.month())
-print(dt.toIso8601String())
-
-// Timers accept the name of a callback function as a string
-fn timerCallback() {
-    print('Timer fired!')
-}
-Timer.delayed(500, 'timerCallback')
-Timer.periodic(1000, 'timerCallback')
-```
-
-### Eval
-Velvet can dynamically evaluate strings containing Velvet code. `eval` operates within the current local scope, meaning injected variables are accessible after `eval()` executes.
 ```typescript
 auto secret = 'Local scope variable'
-eval("print(secret)")
-eval("auto injected = 'Hello'")
-print(injected) // Prints 'Hello'
+eval("print(secret)") // Has access to local scope
+
+eval("auto injected = 'Hello World'")
+print(injected) // Prints 'Hello World'
 ```
 
-## 9. Native Dart Interop (Outer Bindings)
-Velvet supports registering native Dart functions and objects via the `outer` keyword.
+---
 
-**In Velvet:**
+## 8. Importing Modules and Libraries
+
+Velvet bundles a massive standard library (Core APIs) directly into the executable. 
+
+### Importing Core Libraries
+To import a core library (like `io`, `socket`, `os`), simply use its name **without** an extension.
+```typescript
+import "object"
+import "io"
+import "json"
+import "os"
+import "socket"
+import "ai"
+```
+
+### Importing Local Files
+To import your own Velvet scripts, use the full filename with the `.velv` extension.
+```typescript
+import "my_utils.velv"
+import "network/client.velv"
+```
+
+> [!IMPORTANT]
+> To see the full list of available core libraries and their methods, read the `Velvet_Core_Documentation.md` file!
+
+---
+
+## 9. Custom Syntax Extensions (Actions)
+
+Velvet features an incredibly powerful metaprogramming system called **Actions**. Actions allow you to define entirely new syntax for your language without modifying the compiler!
+
+Actions are defined in special `.action.velv` files inside your project directory. 
+
+### Defining an Action
+To define a new syntax rule, use an `actions { ... }` block. You can define what parameters your new syntax takes (e.g., `string`, `block`, `expression`, `identifier`).
+
+**`http.action.velv`:**
+```typescript
+actions {
+    // Defines a new keyword 'fetch' that takes a URL string and a code block
+    fetch(url: string, body: block) {
+        http.get(url, body) // Transforms it into normal Velvet code
+    }
+
+    // Defines a new keyword 'log' that takes a single expression
+    log(value: expression) {
+        print(value)
+    }
+}
+```
+
+### Using an Action
+Once defined in a `.action.velv` file, the Velvet compiler automatically registers this new syntax. You can use it natively in any `.velv` file!
+
+**`main.velv`:**
+```typescript
+// Uses the custom 'log' syntax
+log "Starting the application..."
+log 10 + 20
+
+// Uses the custom 'fetch' syntax
+fetch "https://example.com" {
+    print("Fetched successfully!")
+}
+```
+
+When Velvet compiles `main.velv`, it automatically transforms `fetch "https://..." { ... }` into `http.get("https://...", { ... })` before executing it!
+
+---
+
+## 9. Native Dart Interop (Outer Bindings)
+
+Velvet allows you to bind native Dart code directly into Velvet classes using the `outer` keyword. This allows Velvet to be easily extended with native performance features.
+
+**In Velvet (`my_math.velv`):**
 ```typescript
 class MathUtils {
-    // Declared as an outer native method
+    // Declared as an outer native method. There is no body.
     static outer fn nativeMultiply(a, b)
 }
 ```
@@ -255,8 +294,10 @@ class MathUtils {
 **In Dart (Interpreter Side):**
 ```dart
 Runtime.register("MathUtils", (klass) {
-    klass.defineStatic('nativeMultiply', (args) => (args[0] as num) * (args[1] as num));
+    klass.defineStatic('nativeMultiply', (args) {
+        return (args[0] as num) * (args[1] as num);
+    });
 });
 ```
 
-Raw Dart objects returned from outer methods can also be directly interacted with inside Velvet, provided their class structure has been defined in a `.velv` file (using `Runtime.bindPrimitive`).
+When a Velvet script calls `MathUtils.nativeMultiply(5, 5)`, it will instantly route out to the native Dart implementation and return the result!

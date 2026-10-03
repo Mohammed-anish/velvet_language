@@ -1,3 +1,5 @@
+/// Represents an operating system process.
+/// Provides methods to interact with the environment, arguments, and process lifecycle.
 class Process {
     static outer fn run(command, args)
     static outer fn args()
@@ -6,11 +8,13 @@ class Process {
     static outer fn exit(code)
 }
 
+/// Provides information about the environment in which Velvet is running.
 class Platform {
     static outer fn env(key)
     static outer fn os()
 }
 
+/// A utility class for manipulating file and directory paths.
 class Path {
     static outer fn join(part1, part2)
     static outer fn basename(path)
@@ -18,6 +22,8 @@ class Path {
     static outer fn extension(path)
 }
 
+/// Represents an instant in time.
+/// Provides methods to get the current date and time.
 class DateTime {
     static outer fn now()
     
@@ -31,6 +37,7 @@ class DateTime {
     outer fn toIso8601String()
 }
 
+/// A countdown timer that can be configured to fire once or repeatedly.
 class Timer {
     static outer fn periodic(milliseconds, functionName)
     static outer fn delayed(milliseconds, functionName)

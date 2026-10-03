@@ -1,0 +1,11 @@
+class RegExp {
+    auto _nativeData = 0
+    fn init(pattern) {
+        this.compile(pattern)
+    }
+    
+    outer fn compile(pattern)
+    outer fn hasMatch(string)
+    outer fn stringMatch(string)
+    outer fn replaceAll(string, replacement)
+}

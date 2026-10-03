@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'dart:async';
+import 'package:path/path.dart' as p;
+import 'package:velvet_cmp/core/bundled_core.dart';
 import 'package:velvet_cmp/interpreter/scope.dart';
 import 'package:velvet_cmp/interpreter/sys_functions.dart';
 import 'package:velvet_cmp/parser/ast_classes.dart';
@@ -30,10 +32,83 @@ class VelvetException implements Exception {
 class Interpreter with Scopes {
   Map<String, Node> functions = {};
   KlassInstance? currentThis;
-  Interpreter() {
+  final List<String> _importDirectories = [];
+  final Set<String> _loadedImports = {};
+
+  Interpreter({String? entryScriptPath}) {
+    if (entryScriptPath != null) {
+      _importDirectories.add(File(entryScriptPath).absolute.parent.path);
+    }
     OuterFunctionRegistry.register();
   }
-  Future<dynamic> execute(Node ast, {List<Map<String, dynamic>>? customScope}) async {
+
+  File _resolveImport(String importPath) {
+    final candidates = <String>[];
+    if (p.isAbsolute(importPath)) {
+      candidates.add(importPath);
+    } else {
+      // The most recently imported module owns relative imports.
+      for (final directory in _importDirectories.reversed) {
+        candidates.add(p.join(directory, importPath));
+      }
+      // Retain support for running scripts that intentionally import from CWD.
+      candidates.add(importPath);
+      // Bundled core modules must be resolved from the executable, not CWD.
+      if (Platform.script.isScheme('file')) {
+        candidates.add(
+          p.join(
+            File(Platform.script.toFilePath()).parent.path,
+            'velvet_core',
+            importPath,
+          ),
+        );
+      } else {
+        candidates.add(p.join('bin', 'velvet_core', importPath));
+      }
+    }
+
+    for (final candidate in candidates) {
+      final file = File(candidate);
+      if (file.existsSync()) {
+        return file;
+      }
+    }
+    throw Exception('Import file not found: $importPath');
+  }
+
+  Future<dynamic> execute(
+    Node ast, {
+    List<Map<String, dynamic>>? customScope,
+  }) async {
+    try {
+      return await _executeImpl(ast, customScope: customScope);
+    } catch (e) {
+      if (e is VelvetException) {
+        // Add file context to the stack trace for imports
+        if (ast is ImportNode) {
+          e.callStack.add(
+            'import "${ast.path}" at line ${ast.line}:${ast.column}',
+          );
+        }
+        rethrow;
+      }
+      String msg = e is Exception
+          ? e.toString().replaceFirst('Exception: ', '')
+          : e.toString();
+      // For imports, include the import path in the stack frame
+      if (ast is ImportNode) {
+        throw VelvetException(msg, [
+          'import "${ast.path}" at line ${ast.line}:${ast.column}',
+        ]);
+      }
+      throw VelvetException(msg, ['line ${ast.line}:${ast.column}']);
+    }
+  }
+
+  Future<dynamic> _executeImpl(
+    Node ast, {
+    List<Map<String, dynamic>>? customScope,
+  }) async {
     if (customScope != null) {
       scopes = customScope;
     }
@@ -58,6 +133,9 @@ class Interpreter with Scopes {
       return lastResult;
     }
 
+    if (ast is CallableBlockNode) {
+      return ast; // Return the node itself so it can be passed as a variable and executed later
+    }
 
     if (ast is BineryNode) {
       if (ast.op == '&&') {
@@ -138,17 +216,13 @@ class Interpreter with Scopes {
     if (ast is AssignmentNode) {
       if (ast.target case IdentifierNode idf) {
         if (checkReactive(idf.name)) {
-          notifyReactive(
-            idf.name,
-            await execute(ast.value),
-            (nodes) async {
-              for (final Node node in nodes) {
-                pushScope();
-                await execute(node);
-                popScope();
-              }
-            },
-          );
+          notifyReactive(idf.name, await execute(ast.value), (nodes) async {
+            for (final Node node in nodes) {
+              pushScope();
+              await execute(node);
+              popScope();
+            }
+          });
         }
         setVar(idf.name, await execute(ast.value));
       }
@@ -158,7 +232,9 @@ class Interpreter with Scopes {
             var className = (member.object as IdentifierNode).name;
             var staticFieldKey = '$className.${member.property}';
             if (Runtime.outerStaticFields.containsKey(staticFieldKey)) {
-              Runtime.outerStaticFields[staticFieldKey] = await execute(ast.value);
+              Runtime.outerStaticFields[staticFieldKey] = await execute(
+                ast.value,
+              );
               return;
             }
           }
@@ -166,7 +242,8 @@ class Interpreter with Scopes {
 
           return;
         } else {
-          KlassInstance? object = await execute(member.object) as KlassInstance?;
+          KlassInstance? object =
+              await execute(member.object) as KlassInstance?;
           final value = await execute(ast.value);
 
           var setterKey = '${object!.name}.${member.property}';
@@ -179,7 +256,8 @@ class Interpreter with Scopes {
             var kind = object.instanceOf.getField(member.property)?.kind;
             if (kind != 'auto' && (RunTimeType.check(value)) != kind) {
               throw Exception(
-                  'Expected value type ${kind} but got ${(RunTimeType.check(value))}');
+                'Expected value type ${kind} but got ${(RunTimeType.check(value))}',
+              );
             }
 
             object.setField(member.property, value);
@@ -195,11 +273,23 @@ class Interpreter with Scopes {
         if (targetObj is KlassInstance) {
           if (targetObj.functions.containsKey('set')) {
             Runtime.call(
-                '${targetObj.name}.set', [targetObj, indexVal, value], null);
+                '${targetObj.name}.set',
+                [
+                  targetObj,
+                  indexVal,
+                  value,
+                ],
+                null);
             return;
           } else if (targetObj.functions.containsKey('put')) {
             Runtime.call(
-                '${targetObj.name}.put', [targetObj, indexVal, value], null);
+                '${targetObj.name}.put',
+                [
+                  targetObj,
+                  indexVal,
+                  value,
+                ],
+                null);
             return;
           }
         }
@@ -242,12 +332,32 @@ class Interpreter with Scopes {
 
             return SysFunctions.execute(idf.name, evaluatedArgs);
           }
+
+          dynamic varVal;
+          try {
+            varVal = getVar(idf.name);
+          } catch (_) {}
+
+          if (varVal is CallableBlockNode) {
+            pushScope();
+            try {
+              for (Node statement in varVal.statements) {
+                var result = await execute(statement);
+                if (result is _ReturnClause) return result.value;
+              }
+              return null;
+            } finally {
+              popScope();
+            }
+          }
+
           throw 'Unexpected function call: ${idf.name}. The function is not defined';
         }
 
         if (ast.arguments.length != func.arguments.length) {
           throw Exception(
-              'Function ${idf.name}: requires ${func.arguments.length} but got ${ast.arguments.length}');
+            'Function ${idf.name}: requires ${func.arguments.length} but got ${ast.arguments.length}',
+          );
         }
 
         pushScope(); //create local scope of variable
@@ -265,7 +375,8 @@ class Interpreter with Scopes {
                   (RunTimeType.check(result.value)) !=
                       (func.returnType as IdentifierNode).name) {
                 throw Exception(
-                    'Expected return type is ${(func.returnType as IdentifierNode).name}. but got ${result.value}');
+                  'Expected return type is ${(func.returnType as IdentifierNode).name}. but got ${result.value}',
+                );
               }
 
               return result.value;
@@ -277,7 +388,9 @@ class Interpreter with Scopes {
             e.callStack.add(frame);
             rethrow;
           } else {
-            String msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : e.toString();
+            String msg = e is Exception
+                ? e.toString().replaceFirst('Exception: ', '')
+                : e.toString();
             throw VelvetException(msg, [frame]);
           }
         } finally {
@@ -285,6 +398,12 @@ class Interpreter with Scopes {
         }
       } else if (ast.callee case MemberAccess member) {
         var rawObject = await execute(member.object);
+
+        if (rawObject == null) {
+          throw Exception(
+            "Cannot call '${member.property}' on null. Check that the receiver is initialized before invoking this method.",
+          );
+        }
 
         if (rawObject is klassObject) {
           if (member.object is IdentifierNode) {
@@ -334,7 +453,8 @@ class Interpreter with Scopes {
                 evaluatedArgs.add(await execute(e));
               }
               return Runtime.outerStaticMethods[staticMethodKey]!(
-                  evaluatedArgs);
+                evaluatedArgs,
+              );
             }
           }
 
@@ -349,7 +469,8 @@ class Interpreter with Scopes {
           if (func != null && func.isStatic) {
             if (ast.arguments.length != func.arguments.length) {
               throw Exception(
-                  'Function ${member.property}: requires ${func.arguments.length} but got ${ast.arguments.length}');
+                'Function ${member.property}: requires ${func.arguments.length} but got ${ast.arguments.length}',
+              );
             }
             pushScope(); //create local scope of variable
             for (var i = 0; i < ast.arguments.length; i++) {
@@ -364,7 +485,8 @@ class Interpreter with Scopes {
                     (RunTimeType.check(result.value)) !=
                         (func.returnType as IdentifierNode).name) {
                   throw Exception(
-                      'Expected return type is ${(func.returnType as IdentifierNode).name}. but got ${result.value}');
+                    'Expected return type is ${(func.returnType as IdentifierNode).name}. but got ${result.value}',
+                  );
                 }
 
                 popScope();
@@ -377,7 +499,8 @@ class Interpreter with Scopes {
           }
 
           throw Exception(
-              'Static method ${member.property} not found or is not natively registered');
+            'Static method ${member.property} not found or is not natively registered',
+          );
         }
 
         if (rawObject is! KlassInstance) {
@@ -404,20 +527,24 @@ class Interpreter with Scopes {
               className = 'DateTime';
             else
               throw Exception(
-                  'No primitive class binding found for type ${rawObject.runtimeType}');
+                'No primitive class binding found for type ${rawObject.runtimeType}',
+              );
           }
 
           klassObject? primitiveClass = getGlobal(className) as klassObject?;
           if (primitiveClass == null)
             throw Exception('$className class not found.');
           FunctionDecl func = primitiveClass.methods.firstWhere(
-              (m) => m.name == member.property,
-              orElse: () => throw Exception(
-                  'Method ${member.property} not found on $className'));
+            (m) => m.name == member.property,
+            orElse: () => throw Exception(
+              'Method ${member.property} not found on $className',
+            ),
+          );
 
           if (ast.arguments.length != func.arguments.length) {
             throw Exception(
-                'Function ${member.property}: requires ${func.arguments.length} but got ${ast.arguments.length}');
+              'Function ${member.property}: requires ${func.arguments.length} but got ${ast.arguments.length}',
+            );
           }
           if (func.isOuter) {
             List evaluatedArgs = [];
@@ -425,12 +552,14 @@ class Interpreter with Scopes {
               evaluatedArgs.add(await execute(e));
             }
             return Runtime.call(
-                '$className.${func.name}',
-                [rawObject, ...evaluatedArgs],
-                (func.returnType as IdentifierNode?)?.name);
+              '$className.${func.name}',
+              [rawObject, ...evaluatedArgs],
+              (func.returnType as IdentifierNode?)?.name,
+            );
           }
           throw Exception(
-              'Only outer methods are supported on primitive bindings');
+            'Only outer methods are supported on primitive bindings',
+          );
         }
 
         KlassInstance? object = rawObject as KlassInstance?;
@@ -439,7 +568,8 @@ class Interpreter with Scopes {
 
         if (ast.arguments.length != func.arguments.length) {
           throw Exception(
-              'Function ${member.property}: requires ${func.arguments.length} but got ${ast.arguments.length}');
+            'Function ${member.property}: requires ${func.arguments.length} but got ${ast.arguments.length}',
+          );
         }
         if (func.isOuter) {
           final String? returnType = (func.returnType as IdentifierNode?)?.name;
@@ -447,8 +577,13 @@ class Interpreter with Scopes {
           for (var e in ast.arguments) {
             evaluatedArgs.add(await execute(e));
           }
-          return Runtime.call('${object.name}.${func.name}',
-              [object, ...evaluatedArgs], returnType);
+          return Runtime.call(
+              '${object.name}.${func.name}',
+              [
+                object,
+                ...evaluatedArgs,
+              ],
+              returnType);
         }
 
         pushScope(); //create local scope of variable
@@ -465,7 +600,8 @@ class Interpreter with Scopes {
                 (RunTimeType.check(result.value)) !=
                     (func.returnType as IdentifierNode).name) {
               throw Exception(
-                  'Expected return type is ${(func.returnType as IdentifierNode).name}. but got ${result.value}');
+                'Expected return type is ${(func.returnType as IdentifierNode).name}. but got ${result.value}',
+              );
             }
 
             return result.value;
@@ -522,7 +658,7 @@ class Interpreter with Scopes {
           }
         }
       }
-      
+
       if (className != null) {
         var getterKey = '$className.${ast.property}';
         if (Runtime.outerGetters.containsKey(getterKey)) {
@@ -541,7 +677,8 @@ class Interpreter with Scopes {
       klassObject? listClass = getGlobal('List') as klassObject?;
       if (listClass == null)
         throw Exception(
-            'List class not found. Ensure core object.velv is imported.');
+          'List class not found. Ensure core object.velv is imported.',
+        );
       var instance = await listClass.instanciate('List', execute);
       instance.setField('_nativeData', elements);
       return instance;
@@ -554,7 +691,8 @@ class Interpreter with Scopes {
       klassObject? mapClass = getGlobal('Map') as klassObject?;
       if (mapClass == null)
         throw Exception(
-            'Map class not found. Ensure core object.velv is imported.');
+          'Map class not found. Ensure core object.velv is imported.',
+        );
       var instance = await mapClass.instanciate('Map', execute);
       instance.setField('_nativeData', map);
       return instance;
@@ -565,7 +703,12 @@ class Interpreter with Scopes {
       if (targetObj is KlassInstance) {
         if (targetObj.functions.containsKey('get')) {
           return Runtime.call(
-              '${targetObj.name}.get', [targetObj, indexVal], null);
+              '${targetObj.name}.get',
+              [
+                targetObj,
+                indexVal,
+              ],
+              null);
         }
       }
       return targetObj[indexVal];
@@ -601,14 +744,15 @@ class Interpreter with Scopes {
       }
 
       if (result == false && ast.elseNode != null) {
+        pushScope();
         for (var c in ast.elseNode!) {
-          pushScope();
           var r = await execute(c);
-          popScope();
           if (r is _ReturnClause) {
+            popScope();
             return r;
           }
         }
+        popScope();
       }
     }
     if (ast is BooleanNode) {
@@ -707,7 +851,9 @@ class Interpreter with Scopes {
           var val = getContextVar(v);
           defineVar(v, val);
         } catch (e) {
-          throw Exception('Context variable "$v" is required but was not provided as a context in the calling environment.');
+          throw Exception(
+            'Context variable "$v" is required but was not provided as a context in the calling environment.',
+          );
         }
       }
       return null;
@@ -715,19 +861,25 @@ class Interpreter with Scopes {
 
     if (ast is ClassDeclration) {
       var klass = klassObject(
-          fields: ast.body.whereType<VariableDeclarationNode>().toList(),
-          methods: ast.body.whereType<FunctionDecl>().toList());
+        fields: ast.body.whereType<VariableDeclarationNode>().toList(),
+        methods: ast.body.whereType<FunctionDecl>().toList(),
+      );
       setGlobal(ast.name, klass);
       await klass.initStatics(execute);
     }
     if (ast is StateDeclration) {
-      var stateFields = ast.values.map((val) => VariableDeclarationNode(
-          name: val,
-          kind: 'auto',
-          value: StringNode(val),
-          isStatic: true,
-          isField: true,
-          isReactive: false)).toList();
+      var stateFields = ast.values
+          .map(
+            (val) => VariableDeclarationNode(
+              name: val,
+              kind: 'auto',
+              value: StringNode(val),
+              isStatic: true,
+              isField: true,
+              isReactive: false,
+            ),
+          )
+          .toList();
       var stateKlass = klassObject(fields: stateFields, methods: []);
       for (var val in ast.values) {
         stateKlass.setStatic(val, val); // Set value to string representation
@@ -735,19 +887,40 @@ class Interpreter with Scopes {
       setGlobal(ast.name, stateKlass);
     }
     if (ast is ImportNode) {
-      var file = File(ast.path);
-      if (!file.existsSync()) {
-        // Try resolving from the core library directory
-        var coreFile = File('bin/velvet_core/${ast.path}');
-        if (coreFile.existsSync()) {
-          file = coreFile;
+      if (_loadedImports.contains(ast.path)) {
+        return;
+      }
+      _loadedImports.add(ast.path);
+
+      try {
+        var file = _resolveImport(ast.path);
+        final currentImportDir =
+            _importDirectories.isEmpty ? null : _importDirectories.last;
+        _importDirectories.add(file.parent.absolute.path);
+
+        try {
+          Tokenizer tokenizer = Tokenizer(file.readAsStringSync())..tokenize();
+          Programe parsed = Parser(
+            tokenizer,
+            sourceName: p.basename(file.path),
+          ).parse();
+          await execute(parsed);
+        } finally {
+          _importDirectories.removeLast();
+        }
+      } catch (e) {
+        // Don't swallow syntax/runtime errors from the imported file
+        if (e is VelvetException) rethrow;
+        if (BundledCore.files.containsKey(ast.path.replaceAll('.velv', ''))) {
+          Tokenizer tokenizer = Tokenizer(
+            BundledCore.files[ast.path.replaceAll('.velv', '')]!,
+          )..tokenize();
+          Programe parsed = Parser(tokenizer, sourceName: ast.path).parse();
+          await execute(parsed);
         } else {
-          throw Exception('Import file not found: ${ast.path}');
+          rethrow;
         }
       }
-      Tokenizer tokenizer = Tokenizer(file.readAsStringSync())..tokenize();
-      Programe parsed = Parser(tokenizer).parse();
-      await execute(parsed);
     }
     if (ast is NewClassInstance) {
       klassObject? klass = getGlobal(ast.name) as klassObject?;
@@ -771,8 +944,7 @@ class Interpreter with Scopes {
           for (var e in ast.args) {
             evaluatedArgs.add(await execute(e));
           }
-          Runtime.call('${ast.name}.init',
-              [instance, ...evaluatedArgs], null);
+          Runtime.call('${ast.name}.init', [instance, ...evaluatedArgs], null);
         } else {
           pushScope();
           var prevThis = currentThis;

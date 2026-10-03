@@ -15,7 +15,7 @@ void main(List<String> args) async {
     print('Usage: velvet <script.velv> OR velvet bind <file_or_dir>');
     return;
   }
-  
+
   if (args[0] == 'bind') {
     generateBindings(args.sublist(1));
     return;
@@ -23,14 +23,17 @@ void main(List<String> args) async {
   if (args.length > 1) {
     Runtime.scriptArgs = args.sublist(1);
   }
-  
+
   File mainFile = File(args.first);
   Directory dir = mainFile.parent;
   if (dir.existsSync()) {
-    var actionFiles = dir.listSync().where((f) => f.path.endsWith('.action.velv'));
+    var actionFiles = dir.listSync().where(
+      (f) => f.path.endsWith('.action.velv'),
+    );
     for (var file in actionFiles) {
       if (file is File) {
-        Tokenizer actionTokenizer = Tokenizer(file.readAsStringSync())..tokenize();
+        Tokenizer actionTokenizer = Tokenizer(file.readAsStringSync())
+          ..tokenize();
         Parser(actionTokenizer).parse();
       }
     }
@@ -39,15 +42,28 @@ void main(List<String> args) async {
   Tokenizer tokenizer = Tokenizer(read(args))..tokenize();
   // print(tokenizer.tokens.map((t) => t.type.name).join(', '));
 
-  Programe parse = Parser(tokenizer).parse();
+  Programe parse;
+  try {
+    parse = Parser(
+      tokenizer,
+      sourceName: mainFile.uri.pathSegments.last,
+    ).parse();
+  } catch (e) {
+    String msg = e.toString().replaceFirst('Exception: ', '');
+    print('\x1B[31m$msg\x1B[0m');
+    exit(1);
+  }
+
   // print(parse);
   try {
-    await Interpreter().execute(parse);
+    await Interpreter(entryScriptPath: mainFile.absolute.path).execute(parse);
   } on VelvetException catch (e) {
-    print('\x1B[31m$e\x1B[0m'); // ANSI Red
+    // Strip nested "Exception: " wrappers for clean output
+    String msg = e.message.replaceFirst('Exception: ', '');
+    print('\x1B[31m$msg\x1B[0m');
     exit(1);
-  } catch (e) {
-    print('\x1B[31mUnhandled Native Exception: $e\x1B[0m');
+  } catch (e, s) {
+    print('\x1B[31mUnhandled Native Exception: $e\n$s\x1B[0m');
     exit(1);
   }
 }
