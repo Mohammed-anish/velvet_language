@@ -1,0 +1,7 @@
+import "vml.velv"
+auto source = '@document(lang="en") { @h1 { Hello World } }'
+auto parsed = VML.parse(source)
+print(parsed)
+
+auto rendered = VML.render(source)
+print(rendered)

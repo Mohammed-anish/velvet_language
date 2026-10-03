@@ -10,6 +10,10 @@ import 'package:velvet_cmp/bindings/crypto/crypto_registry.dart';
 import 'package:crypto/crypto.dart';
 import 'package:velvet_cmp/runtime/ffi_bridge.dart';
 import 'package:mime/mime.dart';
+import 'package:velvet_cmp/lexer/tokenizer.dart';
+import 'package:velvet_cmp/parser/parser.dart';
+import 'package:velvet_cmp/core/vml_dom.dart';
+import 'package:velvet_cmp/parser/ast_classes.dart';
 
 class OuterFunctionRegistry {
   static void register() {
@@ -801,6 +805,62 @@ class OuterFunctionRegistry {
       });
       klass.define('parse', (args) {
         return jsonDecode(args[1] as String);
+      });
+    });
+
+    Runtime.register("VML", (klass) {
+      klass.defineStatic('parse', (args) {
+        var source = args[0] as String;
+        var tokenizer = Tokenizer(source);
+        tokenizer.tokenize();
+        var parser = Parser(tokenizer, sourceName: 'inline.vml');
+        var ast = parser.parse();
+        
+        List<Node> markupNodes = [];
+        for (var stmt in ast.body) {
+          if (stmt is MarkupNode) {
+            markupNodes.add(stmt);
+          } else if (stmt is ExpressionStatement && stmt.value is MarkupNode) {
+            markupNodes.add(stmt.value);
+          }
+        }
+        
+        var dom = VmlDocument.fromAst(markupNodes);
+        
+        Map<String, dynamic> convertNode(VmlNode node) {
+           if (node is VmlText) {
+              return {"type": "text", "value": node.text};
+           } else if (node is VmlElement) {
+              return {
+                 "type": "element",
+                 "tag": node.tagName,
+                 "attributes": node.attributes,
+                 "children": node.children.map(convertNode).toList(),
+              };
+           }
+           return {};
+        }
+
+        return dom.nodes.map(convertNode).toList();
+      });
+      klass.defineStatic('render', (args) {
+        var source = args[0] as String;
+        var tokenizer = Tokenizer(source);
+        tokenizer.tokenize();
+        var parser = Parser(tokenizer, sourceName: 'inline.vml');
+        var ast = parser.parse();
+        
+        List<Node> markupNodes = [];
+        for (var stmt in ast.body) {
+          if (stmt is MarkupNode) {
+            markupNodes.add(stmt);
+          } else if (stmt is ExpressionStatement && stmt.value is MarkupNode) {
+            markupNodes.add(stmt.value);
+          }
+        }
+        
+        var dom = VmlDocument.fromAst(markupNodes);
+        return dom.toString();
       });
     });
 

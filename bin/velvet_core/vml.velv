@@ -1,0 +1,4 @@
+class VML {
+    static outer fn parse(source)
+    static outer fn render(source)
+}
