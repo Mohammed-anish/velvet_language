@@ -194,6 +194,13 @@ class Interpreter with Scopes {
       await execute(ast.value);
     }
 
+    if (ast is KeywordNode) {
+      return ast.value;
+    }
+    if (ast is TypeNode) {
+      return ast.name;
+    }
+
     if (ast is VariableDeclarationNode) {
       if (ast.kind != 'auto' &&
           ast.kind != RunTimeType.check(await execute(ast.value))) {

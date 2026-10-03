@@ -193,6 +193,34 @@ class IdentifierNode extends Node {
   String toString() => 'IdentifierNode(name: $name)';
 }
 
+/// A literal language word captured by an Action. Unlike [VariableNode], this
+/// represents the word itself and never performs a scope lookup.
+class KeywordNode extends Node {
+  final String value;
+  KeywordNode(this.value);
+
+  @override
+  String toString() => 'KeywordNode(value: $value)';
+}
+
+/// A type name captured by an Action declaration.
+class TypeNode extends Node {
+  final String name;
+  TypeNode(this.name);
+
+  @override
+  String toString() => 'TypeNode(name: $name)';
+}
+
+/// A function-style list of parameter names captured by an Action.
+class ParametersNode extends Node {
+  final List<String> names;
+  ParametersNode(this.names);
+
+  @override
+  String toString() => 'ParametersNode(names: $names)';
+}
+
 class IfNode extends Node {
   final Node condition;
   final List<Node> ifBlock;

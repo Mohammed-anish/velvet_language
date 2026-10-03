@@ -15,6 +15,12 @@ class ASTCloner {
         return bindings[node.name]!;
       }
       return IdentifierNode(node.name);
+    } else if (node is KeywordNode) {
+      return KeywordNode(node.value);
+    } else if (node is TypeNode) {
+      return TypeNode(node.name);
+    } else if (node is ParametersNode) {
+      return ParametersNode(List.from(node.names));
     } else if (node is VariableNode) {
       if (bindings.containsKey(node.name)) {
         return bindings[node.name]!;
@@ -27,17 +33,33 @@ class ASTCloner {
         right: clone(node.right),
       );
     } else if (node is ExpressionStatement) {
+      if (node.value is IdentifierNode || node.value is VariableNode) {
+        final name = node.value is IdentifierNode
+            ? (node.value as IdentifierNode).name
+            : (node.value as VariableNode).name;
+        final binding = bindings[name];
+        if (binding is ExpressionStatement) return clone(binding);
+      }
       return ExpressionStatement(clone(node.value));
     } else if (node is FunctionDecl) {
+      final arguments = <String>[];
+      for (final argument in node.arguments) {
+        final binding = bindings[argument];
+        if (binding is ParametersNode) {
+          arguments.addAll(binding.names);
+        } else {
+          arguments.add(argument);
+        }
+      }
       return FunctionDecl(
         name: node.name,
         kind: node.kind,
-        body: cloneList(node.body),
+        body: _cloneFunctionBody(node.body),
         returnType: node.returnType != null ? clone(node.returnType!) : null,
         isOuter: node.isOuter,
         isStatic: node.isStatic,
         isAsync: node.isAsync,
-        arguments: List.from(node.arguments),
+        arguments: arguments,
       );
     } else if (node is FunctionCall) {
       return FunctionCall(
@@ -57,9 +79,10 @@ class ASTCloner {
     } else if (node is ReturnNode) {
       return ReturnNode(value: clone(node.value));
     } else if (node is VariableDeclarationNode) {
+      final kindBinding = bindings[node.kind];
       return VariableDeclarationNode(
         name: node.name,
-        kind: node.kind,
+        kind: kindBinding is TypeNode ? kindBinding.name : node.kind,
         value: clone(node.value),
         isField: node.isField,
         isStatic: node.isStatic,
@@ -153,5 +176,22 @@ class ASTCloner {
 
     // Default: return the same node if we don't know how to clone it
     return node;
+  }
+
+  List<Node> _cloneFunctionBody(List<Node> body) {
+    final result = <Node>[];
+    for (final node in body) {
+      if (node is IdentifierNode || node is VariableNode) {
+        final name =
+            node is IdentifierNode ? node.name : (node as VariableNode).name;
+        final binding = bindings[name];
+        if (binding is CallableBlockNode) {
+          result.addAll(cloneList(binding.statements));
+          continue;
+        }
+      }
+      result.add(clone(node));
+    }
+    return result;
   }
 }

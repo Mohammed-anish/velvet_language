@@ -34,7 +34,8 @@ class Parser extends CoreParser with BineryOperations {
         final lineNum = '${err.line}'.padLeft(4);
         buffer.writeln('$lineNum | ${lineContent.trimRight()}');
         // Caret pointer
-        final caretPad = ' ' * (lineNum.length + 3 + (err.column > 0 ? err.column - 1 : 0));
+        final caretPad =
+            ' ' * (lineNum.length + 3 + (err.column > 0 ? err.column - 1 : 0));
         buffer.writeln('$caretPad^');
       }
       buffer.write(err.message);
@@ -225,10 +226,32 @@ class Parser extends CoreParser with BineryOperations {
       } else if (param.syntaxType == 'identifier') {
         Token? t = eat(TType.identifier);
         bindings[param.name] = IdentifierNode(t!.value);
+      } else if (param.syntaxType == 'keyword') {
+        final token = current();
+        if (!_isActionKeyword(token.type)) {
+          throw 'Expected keyword for action parameter "${param.name}" at '
+              '${token.line}:${token.column}';
+        }
+        advance();
+        bindings[param.name] = KeywordNode(token.value);
       } else if (param.syntaxType == 'expression') {
         bindings[param.name] = expression();
+      } else if (param.syntaxType == 'statement') {
+        final statement = parseStatement();
+        if (statement == null) {
+          throw 'Expected statement for action parameter "${param.name}" at '
+              '${current().line}:${current().column}';
+        }
+        bindings[param.name] = statement;
       } else if (param.syntaxType == 'block') {
         bindings[param.name] = CallableBlockNode(statements: parseBlock());
+      } else if (param.syntaxType == 'type') {
+        final token = eat(TType.identifier,
+            exeption:
+                'Expected type name for action parameter "${param.name}"');
+        bindings[param.name] = TypeNode(token!.value);
+      } else if (param.syntaxType == 'parameters') {
+        bindings[param.name] = _parseActionParameters();
       } else {
         throw 'Unsupported action parameter type: ${param.syntaxType}';
       }
@@ -236,6 +259,62 @@ class Parser extends CoreParser with BineryOperations {
 
     var cloner = ASTCloner(bindings);
     return BlockNode(statements: cloner.cloneList(def.body));
+  }
+
+  ParametersNode _parseActionParameters() {
+    eat(TType.lParen,
+        exeption: 'Expected "(" to start an action parameters capture');
+    final names = <String>[];
+    if (!match(TType.rParen)) {
+      do {
+        final parameter = eat(TType.identifier,
+            exeption: 'Action parameters must be identifiers');
+        names.add(parameter!.value);
+        if (match(TType.comma)) {
+          eat(TType.comma);
+        } else {
+          break;
+        }
+      } while (true);
+    }
+    eat(TType.rParen,
+        exeption: 'Expected ")" to finish an action parameters capture');
+    return ParametersNode(names);
+  }
+
+  bool _isActionKeyword(TType type) {
+    return {
+      TType.fn,
+      TType.if_,
+      TType.else_,
+      TType.while_,
+      TType.for_,
+      TType.return_,
+      TType.break_,
+      TType.continue_,
+      TType.class_,
+      TType.import_,
+      TType.export_,
+      TType.let,
+      TType.const_,
+      TType.auto,
+      TType.match_,
+      TType.switch_,
+      TType.case_,
+      TType.default_,
+      TType.try_,
+      TType.catch_,
+      TType.throw_,
+      TType.asyncKw,
+      TType.awaitKw,
+      TType.watch,
+      TType.loop,
+      TType.static,
+      TType.new_,
+      TType.outer,
+      TType.derives,
+      TType.state_,
+    }.contains(type);
   }
 
   Node classDeclaration() {
