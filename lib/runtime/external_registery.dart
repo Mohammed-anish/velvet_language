@@ -534,8 +534,9 @@ class OuterFunctionRegistry {
 
     Runtime.register("Process", (klass) {
       klass.defineStatic('run', (args) {
-        var res = Process.runSync(args[0] as String,
-            (args[1] as KlassInstance).getField('_nativeData') as List<String>);
+        var nativeList = (args[1] as KlassInstance).getField('_nativeData') as List;
+        var stringArgs = nativeList.map((e) => e.toString()).toList();
+        var res = Process.runSync(args[0] as String, stringArgs);
         return res.stdout.toString();
       });
       klass.defineStatic('args', (args) => Platform.executableArguments);
