@@ -118,6 +118,47 @@ auto result = calculateSum(10, 5)
 print(result) // 15
 ```
 
+### Async / Await
+Velvet fully supports modern asynchronous programming using `async fn` and the `await` keyword. Any function interacting with IO, networks, or timers should be awaited.
+
+```typescript
+import "io"
+
+async fn readFile() {
+    auto file = new File("data.txt")
+    if (await file.exists()) {
+        auto content = await file.readAsString()
+        print(content)
+    }
+}
+```
+
+---
+
+## 4.5. Collections (Lists and Maps)
+
+Velvet has native built-in syntax for lists and maps, which act as dynamic collections.
+
+### Lists
+Lists are dynamic arrays.
+```typescript
+auto fruits = ["Apple", "Banana", "Cherry"]
+fruits.add("Orange")
+print(fruits.get(0)) // "Apple"
+fruits.remove("Banana")
+```
+
+### Maps
+Maps are dictionary-like structures for storing key-value pairs.
+```typescript
+auto config = {
+    "host": "localhost",
+    "port": 8080
+}
+print(config.get("host"))
+config.put("timeout", 5000)
+```
+
 ---
 
 ## 5. Object-Oriented Programming (Classes)
@@ -243,7 +284,7 @@ Velvet features an incredibly powerful metaprogramming system called **Actions**
 Actions are defined in special `.action.velv` files inside your project directory. 
 
 ### Defining an Action
-To define a new syntax rule, use an `actions { ... }` block. You can define what parameters your new syntax takes (e.g., `string`, `block`, `expression`, `identifier`).
+To define a new syntax rule, use an `actions { ... }` block. An Action is **not a normal runtime function**. It describes a piece of syntax, captures parts of that syntax, gives those captured parts names, and uses those names inside its implementation to generate normal Velvet AST at compile time.
 
 **`http.action.velv`:**
 ```typescript
@@ -260,8 +301,17 @@ actions {
 }
 ```
 
+### Action Parameter Types (Syntax Bindings)
+Action parameters are **bindings to pieces of syntax captured from the user's source code**. 
+- `string`: Captures a literal string (e.g. `"https://example.com"`).
+- `expression`: Captures a complete normal Velvet expression (e.g. `user.age + 10`). The expression must remain an AST node and be inserted into the generated AST.
+- `block`: Captures the `{ ... }` block as Velvet AST.
+- `identifier`: Captures a raw identifier name.
+
+When you use the parameter inside the action body, the Action system directly substitutes/inserts the corresponding captured AST node into the generated code!
+
 ### Using an Action
-Once defined in a `.action.velv` file, the Velvet compiler automatically registers this new syntax. You can use it natively in any `.velv` file!
+Once defined in a `.action.velv` file, the Velvet compiler automatically registers this new syntax. You can use it natively in any `.velv` file, and IntelliSense will automatically understand it!
 
 **`main.velv`:**
 ```typescript
@@ -279,7 +329,7 @@ When Velvet compiles `main.velv`, it automatically transforms `fetch "https://..
 
 ---
 
-## 9. Native Dart Interop (Outer Bindings)
+## 10. Native Dart Interop (Outer Bindings)
 
 Velvet allows you to bind native Dart code directly into Velvet classes using the `outer` keyword. This allows Velvet to be easily extended with native performance features.
 
@@ -301,3 +351,86 @@ Runtime.register("MathUtils", (klass) {
 ```
 
 When a Velvet script calls `MathUtils.nativeMultiply(5, 5)`, it will instantly route out to the native Dart implementation and return the result!
+
+---
+
+## 11. Embedded VML (Velvet Markup Language)
+
+Velvet natively supports inline markup without needing external HTML files, powered by the VML engine. Markup is identified by the `@` symbol and acts like a first-class citizen!
+
+### Inline Parsing
+```velvet
+import "vml"
+
+auto source = '
+@document(lang="en") {
+    @head {
+        @title { My App }
+    }
+    @body(theme="dark") {
+        @main(id="content") {
+            @h1 { Welcome to Velvet! }
+            @p(group="text description") { This is dynamically parsed. }
+        }
+    }
+}'
+
+// Parse it into an interactive DOM
+auto dom = VML.parse(source)
+auto doc = dom.nodes[0]
+```
+
+### Shorthand Syntax & Self-Closing Tags
+VML supports CSS-like shorthands for IDs and Classes, as well as self-closing tags (omitting `{}`) for empty elements:
+```velvet
+auto markup = '
+@div#header.container.shadow {
+    @input(type="text")
+    @hr; // Semicolon optional
+}
+'
+```
+
+### Native Data Binding (Reactivity)
+Because VML relies on strings and Velvet's native string interpolation `${}`, it integrates seamlessly with `reactive` state!
+
+```velvet
+reactive auto count = 0
+watch count {
+    auto dom = VML.parse("@p { Count: ${count} }")
+    // Update view with dom...
+}
+```
+
+### Advanced DOM Interactions
+Once parsed, VML elements expose a powerful API to query, traverse, and mutate the DOM dynamically:
+
+```velvet
+// Find elements effortlessly
+auto mainNode = doc.findId("content")
+auto textNodes = doc.findGroup("text")
+auto header = mainNode.querySelector("h1")
+
+// Traverse the tree
+auto sibling = header.next()
+auto parentNode = header.parent()
+
+// Mutate the DOM
+mainNode.setAttr("class", "container")
+header.setText("Hello Dynamic VML!")
+mainNode.append(VML.parse('@p { Appended child! }').nodes[0])
+
+// Bind Event Listeners
+mainNode.on("click", "myFunction")
+
+// Render back to string
+print(doc.toHTML())
+```
+
+### Loading from Files
+You can seamlessly read external `.vml` markup files from disk and convert them directly into an interactive DOM using `VML.parseFile()`:
+
+```velvet
+auto dom = VML.parseFile("ui/homepage.vml")
+auto doc = dom.nodes[0]
+```
