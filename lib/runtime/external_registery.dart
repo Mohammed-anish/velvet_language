@@ -859,6 +859,10 @@ class OuterFunctionRegistry {
         (args[0] as VmlElement).setText(args[1] as String);
         return null;
       });
+      klass.define('on', (args) {
+        (args[0] as VmlElement).on(args[1] as String, args[2]);
+        return null;
+      });
       klass.define('toHTML', (args) => (args[0] as VmlElement).toString());
     });
 

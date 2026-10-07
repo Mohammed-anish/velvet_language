@@ -20,6 +20,7 @@ class VmlElement {
     outer fn append(node)
     outer fn remove(node)
     outer fn setText(text)
+    outer fn on(event, callback)
     outer fn toHTML()
     outer fn tagName()
     outer fn attributes()

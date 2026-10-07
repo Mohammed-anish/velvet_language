@@ -17,6 +17,7 @@ enum TType {
   string,
   boolean,
   nullLiteral,
+  hash,
 
   // Keywords
   keyword,

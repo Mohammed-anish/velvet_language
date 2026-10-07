@@ -69,6 +69,9 @@ class Tokenizer {
           case '}':
             addToken(TType.rBrace, null, startLine, startColumn);
             break;
+          case '#':
+            addToken(TType.hash, '#', startLine, startColumn);
+            break;
           case '[':
             addToken(TType.lBracket, null, startLine, startColumn);
             break;

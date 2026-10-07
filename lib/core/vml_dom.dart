@@ -35,9 +35,19 @@ class VmlElement extends VmlNode {
   final String tagName;
   final Map<String, dynamic> attributes;
   final List<VmlNode> children;
+  final Map<String, List<dynamic>> listeners = {};
 
-  VmlElement(this.tagName, {Map<String, dynamic>? attributes, List<VmlNode>? children})
-      : attributes = attributes ?? {}, children = children ?? [] {
+  void on(String event, dynamic callback) {
+    if (!listeners.containsKey(event)) {
+      listeners[event] = [];
+    }
+    listeners[event]!.add(callback);
+  }
+
+  VmlElement(this.tagName,
+      {Map<String, dynamic>? attributes, List<VmlNode>? children})
+      : attributes = attributes ?? {},
+        children = children ?? [] {
     for (var child in this.children) {
       child.parent = this;
     }
@@ -120,8 +130,9 @@ class VmlElement extends VmlNode {
   String toString() {
     String attrStr = attributes.isEmpty
         ? ''
-        : ' ' + attributes.entries.map((e) => '${e.key}="${e.value}"').join(' ');
-    
+        : ' ' +
+            attributes.entries.map((e) => '${e.key}="${e.value}"').join(' ');
+
     if (children.isEmpty) {
       return '<$tagName$attrStr />';
     }
@@ -164,7 +175,7 @@ class VmlDocument {
     if (node is BooleanNode) return node.value;
     if (node is IdentifierNode) return node.name;
     if (node is VariableNode) return node.name;
-    // For complex expressions, we might just return the AST representation 
+    // For complex expressions, we might just return the AST representation
     // unless we have an interpreter context.
     return node.toString();
   }

@@ -805,6 +805,26 @@ class Parser extends CoreParser with BineryOperations {
     Token? name = eat(TType.identifier, exeption: "Expected markup tag name after '@'");
 
     Map<String, Node> attributes = {};
+    
+    // Parse shorthand IDs and Classes
+    while (match(TType.hash) || match(TType.dot)) {
+      if (match(TType.hash)) {
+        advance(); // consume #
+        Token? idName = eat(TType.identifier, exeption: "Expected identifier after #");
+        if (idName != null) attributes['id'] = StringNode(idName.value);
+      } else if (match(TType.dot)) {
+        advance(); // consume .
+        Token? className = eat(TType.identifier, exeption: "Expected identifier after .");
+        if (className != null) {
+          if (attributes.containsKey('class')) {
+            attributes['class'] = StringNode((attributes['class'] as StringNode).value + ' ' + className.value);
+          } else {
+            attributes['class'] = StringNode(className.value);
+          }
+        }
+      }
+    }
+
     if (match(TType.lParen)) {
       eat(TType.lParen);
       while (!match(TType.rParen) && !isEof()) {
@@ -823,9 +843,13 @@ class Parser extends CoreParser with BineryOperations {
     }
 
     List<Node> children = [];
-    eat(TType.lBrace);
-    children = parseMarkupChildren();
-    eat(TType.rBrace);
+    if (match(TType.lBrace)) {
+      eat(TType.lBrace);
+      children = parseMarkupChildren();
+      eat(TType.rBrace);
+    } else {
+      if (match(TType.semicolon)) eat(TType.semicolon);
+    }
 
     return recordPos(MarkupNode(name: name!.value, attributes: attributes, children: children), startLine, startColumn);
   }
