@@ -559,7 +559,11 @@ class Parser extends CoreParser with BineryOperations {
     // print('>> ${current().value}');
     if (match(TType.else_)) {
       advance();
-      elseNode = parseBlock();
+      if (match(TType.if_)) {
+        elseNode = [parseIfCondition()];
+      } else {
+        elseNode = parseBlock();
+      }
     }
     return IfNode(condition: condition, ifBlock: body, elseNode: elseNode);
   }
