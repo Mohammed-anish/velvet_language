@@ -817,6 +817,13 @@ class OuterFunctionRegistry {
 
     Runtime.register("VmlText", (klass) {
       klass.getter('text', (args) => (args[0] as VmlText).text);
+      klass.define('setText', (args) {
+        (args[0] as VmlText).text = args[1] as String;
+        return null;
+      });
+      klass.define('parent', (args) => (args[0] as VmlText).parent);
+      klass.define('next', (args) => (args[0] as VmlText).next);
+      klass.define('prev', (args) => (args[0] as VmlText).prev);
       klass.define('toHTML', (args) => (args[0] as VmlText).toString());
     });
 
@@ -824,9 +831,34 @@ class OuterFunctionRegistry {
       klass.getter('tagName', (args) => (args[0] as VmlElement).tagName);
       klass.getter('attributes', (args) => (args[0] as VmlElement).attributes);
       klass.getter('children', (args) => (args[0] as VmlElement).children);
+      klass.define('parent', (args) => (args[0] as VmlElement).parent);
+      klass.define('next', (args) => (args[0] as VmlElement).next);
+      klass.define('prev', (args) => (args[0] as VmlElement).prev);
       klass.define('querySelector', (args) => (args[0] as VmlElement).querySelector(args[1] as String));
       klass.define('querySelectorAll', (args) => (args[0] as VmlElement).querySelectorAll(args[1] as String));
+      klass.define('findId', (args) => (args[0] as VmlElement).findId(args[1] as String));
+      klass.define('findGroup', (args) => (args[0] as VmlElement).findGroup(args[1] as String));
       klass.define('getAttribute', (args) => (args[0] as VmlElement).attributes[args[1] as String]);
+      klass.define('setAttr', (args) {
+        (args[0] as VmlElement).setAttr(args[1] as String, args[2]);
+        return null;
+      });
+      klass.define('removeAttr', (args) {
+        (args[0] as VmlElement).removeAttr(args[1] as String);
+        return null;
+      });
+      klass.define('append', (args) {
+        (args[0] as VmlElement).append(args[1] as VmlNode);
+        return null;
+      });
+      klass.define('remove', (args) {
+        (args[0] as VmlElement).remove(args[1] as VmlNode);
+        return null;
+      });
+      klass.define('setText', (args) {
+        (args[0] as VmlElement).setText(args[1] as String);
+        return null;
+      });
       klass.define('toHTML', (args) => (args[0] as VmlElement).toString());
     });
 
@@ -841,6 +873,25 @@ class OuterFunctionRegistry {
         var tokenizer = Tokenizer(source);
         tokenizer.tokenize();
         var parser = Parser(tokenizer, sourceName: 'inline.vml');
+        var ast = parser.parse();
+        
+        List<Node> markupNodes = [];
+        for (var stmt in ast.body) {
+          if (stmt is MarkupNode) {
+            markupNodes.add(stmt);
+          } else if (stmt is ExpressionStatement && stmt.value is MarkupNode) {
+            markupNodes.add(stmt.value);
+          }
+        }
+        
+        return VmlDocument.fromAst(markupNodes);
+      });
+      klass.defineStatic('parseFile', (args) {
+        var file = File(args[0] as String);
+        var source = file.readAsStringSync();
+        var tokenizer = Tokenizer(source);
+        tokenizer.tokenize();
+        var parser = Parser(tokenizer, sourceName: args[0] as String);
         var ast = parser.parse();
         
         List<Node> markupNodes = [];

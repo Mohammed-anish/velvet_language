@@ -1,0 +1,38 @@
+import "vml.velv"
+
+auto source = '
+@document(lang="en") { 
+  @nav(id="navbar" group="header layout") {
+    @link(href="/") { Home }
+  }
+  @main {
+    @h1 { Hello World }
+    @p(group="content text") { This is some text }
+  }
+}'
+
+auto dom = VML.parse(source)
+auto doc = dom.nodes[0]
+
+// 1. Test findId
+auto nav = doc.findId("navbar")
+print("Found navbar by ID: " + nav.tagName)
+
+// 2. Test findGroup
+auto textElements = doc.findGroup("text")
+print("Found elements with group 'text': " + textElements.length())
+
+// 3. Test tree traversal (next/prev/parent)
+auto main = nav.next()
+print("Next sibling of nav is: " + main.tagName)
+print("Parent of main is: " + main.parent().tagName)
+
+// 4. Test mutation (setAttr, setText)
+main.setAttr("id", "main-content")
+nav.removeAttr("group")
+
+auto title = main.querySelector("h1")
+title.setText("Hello Velvet!")
+
+print("\n--- HTML Output ---")
+print(doc.toHTML())

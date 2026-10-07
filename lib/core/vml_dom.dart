@@ -2,10 +2,28 @@ import 'package:velvet_cmp/parser/ast_classes.dart';
 
 abstract class VmlNode {
   VmlElement? parent;
+
+  VmlNode? get next {
+    if (parent == null) return null;
+    var idx = parent!.children.indexOf(this);
+    if (idx != -1 && idx < parent!.children.length - 1) {
+      return parent!.children[idx + 1];
+    }
+    return null;
+  }
+
+  VmlNode? get prev {
+    if (parent == null) return null;
+    var idx = parent!.children.indexOf(this);
+    if (idx > 0) {
+      return parent!.children[idx - 1];
+    }
+    return null;
+  }
 }
 
 class VmlText extends VmlNode {
-  final String text;
+  String text;
 
   VmlText(this.text);
 
@@ -18,11 +36,36 @@ class VmlElement extends VmlNode {
   final Map<String, dynamic> attributes;
   final List<VmlNode> children;
 
-  VmlElement(this.tagName, {this.attributes = const {}, List<VmlNode>? children})
-      : children = children ?? [] {
+  VmlElement(this.tagName, {Map<String, dynamic>? attributes, List<VmlNode>? children})
+      : attributes = attributes ?? {}, children = children ?? [] {
     for (var child in this.children) {
       child.parent = this;
     }
+  }
+
+  VmlElement? findId(String id) {
+    if (attributes['id'] == id) return this;
+    for (var child in children) {
+      if (child is VmlElement) {
+        var result = child.findId(id);
+        if (result != null) return result;
+      }
+    }
+    return null;
+  }
+
+  List<VmlElement> findGroup(String group) {
+    List<VmlElement> elements = [];
+    var grpAttr = attributes['group']?.toString() ?? '';
+    if (grpAttr.split(RegExp(r'\s+')).contains(group)) {
+      elements.add(this);
+    }
+    for (var child in children) {
+      if (child is VmlElement) {
+        elements.addAll(child.findGroup(group));
+      }
+    }
+    return elements;
   }
 
   VmlElement? querySelector(String tag) {
@@ -45,6 +88,32 @@ class VmlElement extends VmlNode {
       }
     }
     return elements;
+  }
+
+  void setAttr(String name, dynamic value) {
+    attributes[name] = value;
+  }
+
+  void removeAttr(String name) {
+    attributes.remove(name);
+  }
+
+  void append(VmlNode node) {
+    node.parent = this;
+    children.add(node);
+  }
+
+  void remove(VmlNode node) {
+    if (children.remove(node)) {
+      node.parent = null;
+    }
+  }
+
+  void setText(String text) {
+    children.clear();
+    var textNode = VmlText(text);
+    textNode.parent = this;
+    children.add(textNode);
   }
 
   @override
