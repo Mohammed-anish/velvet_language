@@ -133,10 +133,15 @@ class VmlElement extends VmlNode {
         : ' ' +
             attributes.entries.map((e) => '${e.key}="${e.value}"').join(' ');
 
+    String listenerStr = listeners.isEmpty
+        ? ''
+        : ' ' +
+            listeners.entries.map((e) => 'on${e.key}="${e.value.join('; ')}"').join(' ');
+
     if (children.isEmpty) {
-      return '<$tagName$attrStr />';
+      return '<$tagName$attrStr$listenerStr />';
     }
-    return '<$tagName$attrStr>\n  ${children.join('\n').replaceAll('\n', '\n  ')}\n</$tagName>';
+    return '<$tagName$attrStr$listenerStr>\n  ${children.join('\n').replaceAll('\n', '\n  ')}\n</$tagName>';
   }
 }
 
